@@ -34,13 +34,15 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             line-height: 1.5;
         }
 
         .app-container {
             display: flex;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }
 
         .sidebar {
@@ -178,16 +180,19 @@
             margin-left: 240px;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
+            height: 100vh;
         }
 
         .top-bar {
-            height: 60px;
+            height: 50px;
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 24px;
+            padding: 0 20px;
+            flex-shrink: 0;
         }
 
         .top-bar-left {
@@ -234,25 +239,107 @@
         .workspace {
             flex: 1;
             display: flex;
-            padding: 20px;
-            gap: 20px;
+            flex-direction: row;
+            padding: 16px;
+            gap: 16px;
             overflow: hidden;
+            min-height: 0;
         }
 
-        .video-section {
+        .left-panel {
+            width: 340px;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .height-hero {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(124, 58, 237, 0.05) 100%);
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .height-hero-label {
+            font-size: 13px;
+            color: var(--accent-secondary);
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .height-hero-value {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .height-hero-unit {
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+
+        .measurement-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .measurement-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .measurement-row-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .measurement-row-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .right-panel {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 8px;
             min-width: 0;
+            min-height: 0;
+        }
+
+        .video-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+            flex: 1;
+            min-height: 0;
         }
 
         .video-container {
             position: relative;
             background: #000;
-            border-radius: 16px;
+            border-radius: 12px;
             overflow: hidden;
-            aspect-ratio: 4/3;
+            flex: 1;
+            min-height: 0;
             border: 1px solid var(--border-color);
         }
 
@@ -281,91 +368,20 @@
             opacity: 0.3;
         }
 
-        .video-overlay {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            display: flex;
-            gap: 8px;
-            z-index: 10;
-        }
-
-        .video-badge {
-            padding: 6px 12px;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(8px);
-            border-radius: 8px;
-            font-size: 12px;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .video-badge.live {
-            background: var(--error);
-        }
-
-        .video-badge .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: currentColor;
-            animation: pulse 1.5s infinite;
-        }
-
-        .video-info-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 12px 16px;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 10;
-        }
-
-        .video-info-text {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .confidence-mini {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .confidence-bar-mini {
-            width: 80px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .confidence-fill-mini {
-            height: 100%;
-            background: var(--success);
-            border-radius: 2px;
-            transition: width 0.3s ease;
-        }
-
         .control-bar {
             display: flex;
-            gap: 12px;
+            gap: 8px;
+            flex-shrink: 0;
         }
 
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            padding: 12px 24px;
-            border-radius: 10px;
-            font-size: 14px;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -374,8 +390,8 @@
         }
 
         .btn svg {
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
         }
 
         .btn-primary {
@@ -431,12 +447,62 @@
             box-shadow: none !important;
         }
 
-        .right-panel {
-            width: 320px;
+        .measurement-bar {
+            background: var(--bg-card);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            flex-shrink: 0;
+        }
+
+        .measurement-bar-header {
             display: flex;
-            flex-direction: column;
-            gap: 16px;
-            overflow-y: auto;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .measurement-bar-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+        }
+
+        .measurement-item {
+            padding: 6px 4px;
+            background: var(--bg-elevated);
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .measurement-highlight {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(124, 58, 237, 0.05) 100%);
+            border: 1px solid rgba(124, 58, 237, 0.2);
+        }
+
+        .measurement-highlight .measurement-value {
+            color: var(--accent-secondary);
+            font-size: 18px;
+        }
+
+        .measurement-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            letter-spacing: 0.3px;
+            margin-bottom: 2px;
+        }
+
+        .measurement-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .measurement-unit {
+            font-size: 10px;
+            font-weight: 400;
+            color: var(--text-muted);
+            margin-left: 1px;
         }
 
         .panel-card {
@@ -455,13 +521,13 @@
         }
 
         .panel-title {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-primary);
         }
 
         .panel-body {
-            padding: 20px;
+            padding: 16px;
         }
 
         .data-grid {
@@ -528,14 +594,15 @@
 
         .history-section {
             background: var(--bg-card);
-            border-radius: 16px;
+            border-radius: 10px;
             border: 1px solid var(--border-color);
             overflow: hidden;
-            max-height: 200px;
+            flex-shrink: 0;
+            max-height: 120px;
         }
 
         .history-header {
-            padding: 14px 20px;
+            padding: 6px 12px;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
@@ -548,24 +615,24 @@
         }
 
         .history-title {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .history-count {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-muted);
             background: var(--bg-elevated);
-            padding: 2px 8px;
-            border-radius: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
         }
 
         .history-list {
-            max-height: 140px;
+            max-height: 90px;
             overflow-y: auto;
         }
 
@@ -573,9 +640,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 20px;
+            padding: 6px 12px;
             border-bottom: 1px solid var(--border-color);
-            font-size: 13px;
+            font-size: 11px;
         }
 
         .history-item:last-child {
@@ -603,8 +670,9 @@
         .pages-container {
             display: none;
             flex: 1;
-            padding: 20px;
-            overflow-y: auto;
+            padding: 16px;
+            overflow: hidden;
+            min-height: 0;
         }
 
         .pages-container.active {
@@ -924,23 +992,8 @@
         }
 
         @media (max-width: 1024px) {
-            .workspace {
-                flex-direction: column;
-            }
-            
-            .right-panel {
-                width: 100%;
-                flex-direction: row;
-                flex-wrap: wrap;
-            }
-            
-            .panel-card {
-                flex: 1;
-                min-width: 280px;
-            }
-            
-            .history-section {
-                width: 100%;
+            .measurement-bar-grid {
+                grid-template-columns: repeat(3, 1fr);
             }
         }
 
@@ -949,19 +1002,23 @@
                 transform: translateX(-100%);
                 transition: transform 0.3s ease;
             }
-            
+
             .sidebar.open {
                 transform: translateX(0);
             }
-            
+
             .main-content {
                 margin-left: 0;
             }
-            
+
             .workspace {
                 padding: 12px;
             }
-            
+
+            .measurement-bar-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
             .image-gallery {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -1035,7 +1092,7 @@
         </aside>
 
         <main class="main-content">
-            <div id="workspacePage" class="workspace-wrapper" style="display: flex; flex: 1;">
+            <div id="workspacePage" class="workspace-wrapper" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
                 <div class="top-bar">
                     <div class="top-bar-left">
                         <span class="page-title">实时测量</span>
@@ -1046,83 +1103,57 @@
                             <span class="dot"></span>
                             <span id="fpsDisplay">-- FPS</span>
                         </div>
-                        <div class="status-badge-top">
-                            <span id="modeDisplay">待机中</span>
-                        </div>
                     </div>
                 </div>
 
                 <div class="workspace">
-                    <div class="right-panel">
-                        <div class="panel-card">
-                            <div class="panel-header">
-                                <span class="panel-title">测量数据</span>
-                                <span style="font-size: 12px; color: var(--text-muted);" id="updateTime">--</span>
-                            </div>
-                            <div class="panel-body">
-                                <div class="data-grid" id="measurementsGrid">
-                                    <div class="data-item data-highlight">
-                                        <div class="data-label">身高 Height</div>
-                                        <div class="data-value" id="heightValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">肩宽</div>
-                                        <div class="data-value" id="shoulderValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">臂展</div>
-                                        <div class="data-value" id="armSpanValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">腿长</div>
-                                        <div class="data-value" id="legLengthValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">坐高</div>
-                                        <div class="data-value" id="sittingValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">骨盆宽</div>
-                                        <div class="data-value" id="pelvicWidthValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">上肢长</div>
-                                        <div class="data-value" id="upperLimbValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">下肢长</div>
-                                        <div class="data-value" id="lowerLimbValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">颈臀长</div>
-                                        <div class="data-value" id="trunkValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">手长</div>
-                                        <div class="data-value" id="handLengthValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                    <div class="data-item">
-                                        <div class="data-label">足长</div>
-                                        <div class="data-value" id="footLengthValue">--<span class="data-unit">cm</span></div>
-                                    </div>
-                                </div>
-                            </div>
+                    <div class="left-panel">
+                        <div class="height-hero">
+                            <div class="height-hero-label">身高 HEIGHT</div>
+                            <div class="height-hero-value" id="heightValue">--<span class="height-hero-unit">cm</span></div>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;" id="updateTime">--</div>
                         </div>
 
-                        <div class="panel-card">
-                            <div class="panel-header">
-                                <span class="panel-title">体检报告</span>
+                        <div class="measurement-list" id="measurementsList">
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">肩宽</span>
+                                <span class="measurement-row-value" id="shoulderValue">-- cm</span>
                             </div>
-                            <div class="panel-body">
-                                <div class="empty-state-panel" id="reportEmpty">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                        <polyline points="14 2 14 8 20 8"/>
-                                        <line x1="16" y1="13" x2="8" y2="13"/>
-                                        <line x1="16" y1="17" x2="8" y2="17"/>
-                                    </svg>
-                                    <p>等待采集数据后生成报告</p>
-                                </div>
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">臂展</span>
+                                <span class="measurement-row-value" id="armSpanValue">-- cm</span>
+                            </div>
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">腿长</span>
+                                <span class="measurement-row-value" id="legLengthValue">-- cm</span>
+                            </div>
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">坐高</span>
+                                <span class="measurement-row-value" id="sittingValue">-- cm</span>
+                            </div>
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">骨盆宽</span>
+                                <span class="measurement-row-value" id="pelvicWidthValue">-- cm</span>
+                            </div>
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">上肢长</span>
+                                <span class="measurement-row-value" id="upperLimbValue">-- cm</span>
+                            </div>
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">下肢长</span>
+                                <span class="measurement-row-value" id="lowerLimbValue">-- cm</span>
+                            </div>
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">颈臀长</span>
+                                <span class="measurement-row-value" id="trunkValue">-- cm</span>
+                            </div>
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">手长</span>
+                                <span class="measurement-row-value" id="handLengthValue">-- cm</span>
+                            </div>
+                            <div class="measurement-row">
+                                <span class="measurement-row-label">足长</span>
+                                <span class="measurement-row-value" id="footLengthValue">-- cm</span>
                             </div>
                         </div>
 
@@ -1142,68 +1173,56 @@
                         </div>
                     </div>
 
-                    <div class="video-section">
-                        <div class="video-container">
-                            <div class="video-overlay">
-                                <span class="video-badge live" id="liveBadge" style="display: none;">
-                                    <span class="dot"></span>LIVE
-                                </span>
-                                <span class="video-badge" id="cameraBadge">摄像头</span>
-                            </div>
-                            
-                            <img class="video-stream" id="videoStream" alt="视频流">
-                            <div class="video-placeholder" id="videoPlaceholder">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                                    <circle cx="12" cy="13" r="4"/>
-                                </svg>
-                                <p>点击下方按钮启动摄像头</p>
-                            </div>
-                            
-                            <div class="video-info-bar">
-                                <span class="video-info-text" id="cameraInfo">等待连接...</span>
-                                <!-- Confidence display removed -->
-                            </div>
-                        </div>
-
-                        <!-- 稳定状态指示器 -->
-                        <div id="stabilityBar" style="display:none; margin: 8px 0; padding: 0 4px;">
-                            <div style="display:flex; align-items:center; gap:10px; font-size:13px;">
-                                <span id="stabilityLabel" style="color:#6b7280; white-space:nowrap;">检测中...</span>
-                                <div style="flex:1; height:6px; background:#e5e7eb; border-radius:3px; overflow:hidden;">
-                                    <div id="stabilityProgress" style="height:100%; width:0%; background:#22c55e; border-radius:3px; transition:width 0.15s;"></div>
+                    <div class="right-panel">
+                        <div class="video-section">
+                            <div class="video-container">
+                                <img class="video-stream" id="videoStream" alt="视频流">
+                                <div class="video-placeholder" id="videoPlaceholder">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                        <circle cx="12" cy="13" r="4"/>
+                                    </svg>
+                                    <p>点击下方按钮启动摄像头</p>
                                 </div>
-                                <span id="stabilityCountdown" style="color:#22c55e; font-weight:600; min-width:30px; text-align:right;"></span>
                             </div>
-                        </div>
 
-                        <div class="control-bar">
-                            <button class="btn btn-primary btn-lg" id="measureBtn" onclick="toggleCamera()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polygon points="5 3 19 12 5 21 5 3"/>
-                                </svg>
-                                启动摄像头
-                            </button>
-                            <button class="btn btn-success" id="captureBtn" onclick="captureMeasurement()" disabled>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <circle cx="12" cy="12" r="3"/>
-                                </svg>
-                                <span id="captureBtnText">采集</span>
-                            </button>
-                            <button class="btn" id="modeBtn" onclick="toggleCollectMode()" disabled
-                                style="background:#f3f4f6; color:#374151; border:1px solid #d1d5db; font-size:13px; padding:8px 14px;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">
-                                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                                </svg>
-                                <span id="modeBtnText">自动</span>
-                            </button>
-                            <button class="btn btn-secondary" id="calibrateBtn" onclick="openModal('calibrationModal')" disabled>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 3v18M3 12h18"/>
-                                </svg>
-                                校准
-                            </button>
+                            <div id="stabilityBar" style="display:none; margin: 4px 0; padding: 0 4px; flex-shrink: 0;">
+                                <div style="display:flex; align-items:center; gap:10px; font-size:12px;">
+                                    <span id="stabilityLabel" style="color:#6b7280; white-space:nowrap;">检测中...</span>
+                                    <div style="flex:1; height:6px; background:#e5e7eb; border-radius:3px; overflow:hidden;">
+                                        <div id="stabilityProgress" style="height:100%; width:0%; background:#22c55e; border-radius:3px; transition:width 0.15s;"></div>
+                                    </div>
+                                    <span id="stabilityCountdown" style="color:#22c55e; font-weight:600; min-width:30px; text-align:right;"></span>
+                                </div>
+                            </div>
+
+                            <div class="control-bar">
+                                <button class="btn btn-primary btn-lg" id="measureBtn" onclick="toggleCamera()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="5 3 19 12 5 21 5 3"/>
+                                    </svg>
+                                    启动摄像头
+                                </button>
+                                <button class="btn btn-success" id="captureBtn" onclick="captureMeasurement()" disabled style="display:none;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                    采集
+                                </button>
+                                <button class="btn" id="modeBtn" onclick="toggleCollectMode()" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                                    </svg>
+                                    <span id="modeBtnText">自动采集</span>
+                                </button>
+                                <button class="btn btn-secondary" id="calibrateBtn" onclick="openModal('calibrationModal')" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 3v18M3 12h18"/>
+                                    </svg>
+                                    校准
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1218,6 +1237,12 @@
                                 <button class="btn btn-danger" onclick="batchDeleteSessions()" id="batchDeleteBtn" style="padding: 8px 16px; font-size: 13px; display: none;">删除选中</button>
                                 <button class="btn btn-danger" onclick="deleteAllSessions()" style="padding: 8px 16px; font-size: 13px;">清空全部</button>
                                 <button class="btn btn-secondary" onclick="loadHistory()" style="padding: 8px 16px; font-size: 13px;">刷新</button>
+                                <button class="btn btn-success" onclick="exportCSV()" style="padding: 8px 16px; font-size: 13px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    导出CSV
+                                </button>
                             </div>
                         </div>
                         <div class="card-body" style="padding: 0;">
@@ -1231,7 +1256,12 @@
                                         <th>臂展</th>
                                         <th>腿长</th>
                                         <th>坐高</th>
-                                        <!-- Confidence column removed -->
+                                        <th>骨盆宽</th>
+                                        <th>上肢长</th>
+                                        <th>下肢长</th>
+                                        <th>颈臀长</th>
+                                        <th>手长</th>
+                                        <th>足长</th>
                                         <th>操作</th>
                                     </tr>
                                 </thead>
@@ -1465,7 +1495,6 @@
                 frameTimeout = setTimeout(() => {
                     if (isRunning && Date.now() - lastFrameTime > 3000) {
                         console.warn('No frames received for 3s');
-                        document.getElementById('cameraInfo').textContent = '视频流中断，尝试重连...';
                     }
                 }, 3000);
             });
@@ -1495,16 +1524,24 @@
                     return;
                 }
 
-                if (data.stable) {
-                    bar.style.display = 'block';
-                    label.textContent = '已稳定';
+                bar.style.display = 'block';
+
+                if (!data.skeleton) {
+                    label.textContent = '骨骼不完整';
+                    label.style.color = '#f59e0b';
+                    progress.style.width = '0%';
+                    progress.style.background = '#f59e0b';
+                    countdown.textContent = '';
+                } else if (data.stable) {
+                    label.textContent = '已站稳';
                     label.style.color = '#22c55e';
                     progress.style.width = (data.progress * 100) + '%';
                     progress.style.background = '#22c55e';
                     countdown.textContent = data.countdown > 0 ? data.countdown + 's' : '';
                 } else {
-                    bar.style.display = 'block';
-                    label.textContent = '不稳定';
+                    const hand = data.hand_movement >= 0 ? data.hand_movement + 'cm' : '-';
+                    const foot = data.foot_movement >= 0 ? data.foot_movement + 'cm' : '-';
+                    label.textContent = '移动中 (手:' + hand + ' 脚:' + foot + ')';
                     label.style.color = '#ef4444';
                     progress.style.width = '0%';
                     progress.style.background = '#ef4444';
@@ -1536,13 +1573,8 @@
                 const data = await response.json();
                 const wasRunning = isRunning;
                 isRunning = data.is_running;
-                
-                if (isRunning && !wasRunning) {
-                    document.getElementById('modeDisplay').textContent = '测量中';
-                    document.getElementById('cameraInfo').textContent = '运行正常';
-                    updateUI();
-                } else if (!isRunning && wasRunning) {
-                    document.getElementById('modeDisplay').textContent = '已停止';
+
+                if (isRunning !== wasRunning) {
                     updateUI();
                 }
             } catch (error) {
@@ -1594,19 +1626,15 @@
                 btn.disabled = true;
                 btn.innerHTML = '<div class="loading-spinner"></div> 启动中...';
                 updateStatus('connecting', '正在连接...');
-                document.getElementById('modeDisplay').textContent = '启动中';
-                
+
                 try {
                     const response = await fetch(`${API_BASE}/api/start`, { method: 'POST' });
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         isRunning = true;
                         showToast('success', '启动成功', data.message);
                         updateStatus('ready', '测量中');
-                        document.getElementById('modeDisplay').textContent = '测量中';
-                        document.getElementById('cameraBadge').textContent = data.mode || 'RealSense';
-                        document.getElementById('cameraInfo').textContent = data.message || '运行正常';
                         socket.emit('start_stream');
                     } else {
                         showToast('error', '启动失败', data.message);
@@ -1616,41 +1644,39 @@
                     showToast('error', '连接错误', error.message);
                     updateStatus('offline', '连接失败');
                 }
-                
+
                 updateUI();
             } else {
                 btn.disabled = true;
                 btn.innerHTML = '<div class="loading-spinner"></div> 停止中...';
-                
+
                 try {
                     const response = await fetch(`${API_BASE}/api/stop`, { method: 'POST' });
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         isRunning = false;
                         showToast('info', '已停止', data.message);
                         updateStatus('offline', '未连接');
-                        document.getElementById('modeDisplay').textContent = '已停止';
                     }
                 } catch (error) {
                     showToast('error', '停止失败', error.message);
                 }
-                
+
                 updateUI();
             }
         }
 
         function updateUI() {
             const btn = document.getElementById('measureBtn');
-            const liveBadge = document.getElementById('liveBadge');
             const placeholder = document.getElementById('videoPlaceholder');
             const stream = document.getElementById('videoStream');
             const captureBtn = document.getElementById('captureBtn');
             const calibrateBtn = document.getElementById('calibrateBtn');
             const modeBtn = document.getElementById('modeBtn');
-            
+
             btn.disabled = false;
-            
+
             if (isRunning) {
                 btn.innerHTML = `
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1661,10 +1687,8 @@
                 `;
                 btn.classList.remove('btn-primary');
                 btn.classList.add('btn-danger');
-                liveBadge.style.display = 'flex';
                 placeholder.style.display = 'none';
                 stream.style.display = 'block';
-                captureBtn.disabled = false;
                 calibrateBtn.disabled = false;
                 modeBtn.disabled = false;
                 updateModeUI(isAutoMode ? 'auto' : 'manual');
@@ -1677,7 +1701,6 @@
                 `;
                 btn.classList.remove('btn-danger');
                 btn.classList.add('btn-primary');
-                liveBadge.style.display = 'none';
                 placeholder.style.display = 'flex';
                 stream.style.display = 'none';
                 captureBtn.disabled = true;
@@ -1710,7 +1733,13 @@
             }
 
             btn.disabled = false;
-            document.getElementById('captureBtnText').textContent = isAutoMode ? '手动补采' : '采集';
+            btn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                采集
+            `;
         }
 
         function toggleCollectMode() {
@@ -1723,37 +1752,38 @@
             isAutoMode = (mode === 'auto');
             const modeBtn = document.getElementById('modeBtn');
             const modeBtnText = document.getElementById('modeBtnText');
-            const captureBtnText = document.getElementById('captureBtnText');
+            const captureBtn = document.getElementById('captureBtn');
             const stabilityBar = document.getElementById('stabilityBar');
 
             if (isAutoMode) {
                 modeBtn.style.background = '#dbeafe';
                 modeBtn.style.color = '#1d4ed8';
                 modeBtn.style.borderColor = '#93c5fd';
-                modeBtnText.textContent = '自动';
-                captureBtnText.textContent = '手动补采';
+                modeBtnText.textContent = '自动采集';
+                captureBtn.style.display = 'none';
             } else {
                 modeBtn.style.background = '#f3f4f6';
                 modeBtn.style.color = '#374151';
                 modeBtn.style.borderColor = '#d1d5db';
-                modeBtnText.textContent = '手动';
-                captureBtnText.textContent = '采集';
+                modeBtnText.textContent = '手动采集';
+                captureBtn.style.display = 'inline-flex';
+                captureBtn.disabled = false;
                 stabilityBar.style.display = 'none';
             }
         }
 
         function updateMeasurements(data) {
-            document.getElementById('heightValue').innerHTML = data.height.toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('shoulderValue').innerHTML = (data.shoulder || data.shoulder_width || 0).toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('armSpanValue').innerHTML = (data.arm_span || 0).toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('legLengthValue').innerHTML = (data.leg_length || 0).toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('sittingValue').innerHTML = (data.sitting_height || 0).toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('pelvicWidthValue').innerHTML = (data.pelvic_width || 0).toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('upperLimbValue').innerHTML = (data.upper_limb_length || 0).toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('lowerLimbValue').innerHTML = (data.lower_limb_length || 0).toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('trunkValue').innerHTML = (data.trunk_length || 0).toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('handLengthValue').innerHTML = (data.hand_length || 0).toFixed(1) + '<span class="data-unit">cm</span>';
-            document.getElementById('footLengthValue').innerHTML = (data.foot_length || 0).toFixed(1) + '<span class="data-unit">cm</span>';
+            document.getElementById('heightValue').innerHTML = data.height.toFixed(1) + '<span class="height-hero-unit">cm</span>';
+            document.getElementById('shoulderValue').textContent = (data.shoulder || data.shoulder_width || 0).toFixed(1) + ' cm';
+            document.getElementById('armSpanValue').textContent = (data.arm_span || 0).toFixed(1) + ' cm';
+            document.getElementById('legLengthValue').textContent = (data.leg_length || 0).toFixed(1) + ' cm';
+            document.getElementById('sittingValue').textContent = (data.sitting_height || 0).toFixed(1) + ' cm';
+            document.getElementById('pelvicWidthValue').textContent = (data.pelvic_width || 0).toFixed(1) + ' cm';
+            document.getElementById('upperLimbValue').textContent = (data.upper_limb_length || 0).toFixed(1) + ' cm';
+            document.getElementById('lowerLimbValue').textContent = (data.lower_limb_length || 0).toFixed(1) + ' cm';
+            document.getElementById('trunkValue').textContent = (data.trunk_length || 0).toFixed(1) + ' cm';
+            document.getElementById('handLengthValue').textContent = (data.hand_length || 0).toFixed(1) + ' cm';
+            document.getElementById('footLengthValue').textContent = (data.foot_length || 0).toFixed(1) + ' cm';
 
             document.getElementById('updateTime').textContent = new Date().toLocaleTimeString();
 
@@ -1794,16 +1824,22 @@
                     empty.style.display = 'none';
                     table.innerHTML = data.data.map((session, index) => {
                         const time = session.timestamp ? session.timestamp.replace('T', ' ').substring(0, 19) : '';
+                        const f = (v) => (v || 0).toFixed(1);
                         return `
                             <tr data-filename="${session.filename}">
                                 <td><input type="checkbox" class="session-checkbox" data-filename="${session.filename}" onchange="updateBatchDeleteBtn()"></td>
                                 <td>${time}</td>
-                                <td><strong>${(session.height || 0).toFixed(1)}</strong> cm</td>
-                                <td>${(session.shoulder || 0).toFixed(1)} cm</td>
-                                <td>${(session.arm_span || 0).toFixed(1)} cm</td>
-                                <td>${(session.leg_length || 0).toFixed(1)} cm</td>
-                                <td>${(session.sitting_height || 0).toFixed(1)} cm</td>
-                                <!-- Confidence display removed -->
+                                <td><strong>${f(session.height)}</strong></td>
+                                <td>${f(session.shoulder)}</td>
+                                <td>${f(session.arm_span)}</td>
+                                <td>${f(session.leg_length)}</td>
+                                <td>${f(session.sitting_height)}</td>
+                                <td>${f(session.pelvic_width)}</td>
+                                <td>${f(session.upper_limb_length)}</td>
+                                <td>${f(session.lower_limb_length)}</td>
+                                <td>${f(session.trunk_length)}</td>
+                                <td>${f(session.hand_length)}</td>
+                                <td>${f(session.foot_length)}</td>
                                 <td>
                                     <button class="action-btn" onclick="viewSessionDetail('${session.filename}')" title="查看详情">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1988,6 +2024,49 @@
                 }
             } catch (error) {
                 showToast('error', '删除失败', error.message);
+            }
+        }
+
+        async function exportCSV() {
+            try {
+                const response = await fetch(`${API_BASE}/api/sessions`);
+                const data = await response.json();
+                if (!data.success || data.data.length === 0) {
+                    showToast('error', '导出失败', '没有可导出的数据');
+                    return;
+                }
+
+                const headers = ['时间', '身高(cm)', '肩宽(cm)', '臂展(cm)', '腿长(cm)', '坐高(cm)', '骨盆宽(cm)', '上肢长(cm)', '下肢长(cm)', '颈臀长(cm)', '手长(cm)', '足长(cm)'];
+                const rows = data.data.map(s => {
+                    const time = s.timestamp ? s.timestamp.replace('T', ' ').substring(0, 19) : '';
+                    return [
+                        time,
+                        (s.height || 0).toFixed(1),
+                        (s.shoulder || 0).toFixed(1),
+                        (s.arm_span || 0).toFixed(1),
+                        (s.leg_length || 0).toFixed(1),
+                        (s.sitting_height || 0).toFixed(1),
+                        (s.pelvic_width || 0).toFixed(1),
+                        (s.upper_limb_length || 0).toFixed(1),
+                        (s.lower_limb_length || 0).toFixed(1),
+                        (s.trunk_length || 0).toFixed(1),
+                        (s.hand_length || 0).toFixed(1),
+                        (s.foot_length || 0).toFixed(1)
+                    ];
+                });
+
+                const bom = '\uFEFF';
+                const csv = bom + headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `measurements_${new Date().toISOString().slice(0,10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('success', '导出成功', `已导出 ${rows.length} 条记录`);
+            } catch (error) {
+                showToast('error', '导出失败', error.message);
             }
         }
 

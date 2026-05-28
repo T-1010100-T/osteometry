@@ -227,18 +227,42 @@ class LinearMeasurements:
 
     @staticmethod
     def calculate_foot_length(skeleton: Skeleton3D) -> float:
-        """计算足长（踝→脚趾，取左右平均）"""
+        """计算足长（踝→脚趾，取左右平均）。若脚趾不可见则从小腿长估算。"""
         left_ankle = skeleton.get_joint('left_ankle')
         left_foot = skeleton.get_joint('left_foot_index')
         right_ankle = skeleton.get_joint('right_ankle')
         right_foot = skeleton.get_joint('right_foot_index')
 
-        left_len = calculate_distance(left_ankle, left_foot) if left_ankle and left_foot else 0.0
-        right_len = calculate_distance(right_ankle, right_foot) if right_ankle and right_foot else 0.0
+        # 检查脚趾点是否有效（confidence > 0 且非原点）
+        def _valid_foot(ankle, foot):
+            if not ankle or not foot:
+                return False
+            if foot.confidence <= 0:
+                return False
+            # 排除原点占位点
+            if foot.x == 0 and foot.y == 0 and foot.z == 0:
+                return False
+            return True
+
+        left_len = calculate_distance(left_ankle, left_foot) if _valid_foot(left_ankle, left_foot) else 0.0
+        right_len = calculate_distance(right_ankle, right_foot) if _valid_foot(right_ankle, right_foot) else 0.0
 
         if left_len > 0 and right_len > 0:
             return (left_len + right_len) / 2
-        return left_len or right_len
+        if left_len > 0 or right_len > 0:
+            return left_len or right_len
+
+        # 备用：从小腿长估算足长（人体比例：足长 ≈ 小腿长 × 0.55）
+        left_knee = skeleton.get_joint('left_knee')
+        right_knee = skeleton.get_joint('right_knee')
+        left_calf = calculate_distance(left_knee, left_ankle) if left_knee and left_ankle else 0.0
+        right_calf = calculate_distance(right_knee, right_ankle) if right_knee and right_ankle else 0.0
+        calf = 0.0
+        if left_calf > 0 and right_calf > 0:
+            calf = (left_calf + right_calf) / 2
+        elif left_calf > 0 or right_calf > 0:
+            calf = left_calf or right_calf
+        return calf * 0.55 if calf > 0 else 0.0
     
     @staticmethod
     def calculate_bike_fitting_bones(skeleton: Skeleton3D) -> Dict[str, float]:

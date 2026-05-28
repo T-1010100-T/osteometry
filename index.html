@@ -281,77 +281,6 @@
             opacity: 0.3;
         }
 
-        .video-overlay {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            display: flex;
-            gap: 8px;
-            z-index: 10;
-        }
-
-        .video-badge {
-            padding: 6px 12px;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(8px);
-            border-radius: 8px;
-            font-size: 12px;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .video-badge.live {
-            background: var(--error);
-        }
-
-        .video-badge .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: currentColor;
-            animation: pulse 1.5s infinite;
-        }
-
-        .video-info-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 12px 16px;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 10;
-        }
-
-        .video-info-text {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .confidence-mini {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .confidence-bar-mini {
-            width: 80px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .confidence-fill-mini {
-            height: 100%;
-            background: var(--success);
-            border-radius: 2px;
-            transition: width 0.3s ease;
-        }
 
         .control-bar {
             display: flex;
@@ -1095,22 +1024,12 @@
                             <span class="dot"></span>
                             <span id="fpsDisplay">-- FPS</span>
                         </div>
-                        <div class="status-badge-top">
-                            <span id="modeDisplay">待机中</span>
-                        </div>
                     </div>
                 </div>
 
                 <div class="workspace">
                     <div class="video-section">
                         <div class="video-container">
-                            <div class="video-overlay">
-                                <span class="video-badge live" id="liveBadge" style="display: none;">
-                                    <span class="dot"></span>LIVE
-                                </span>
-                                <span class="video-badge" id="cameraBadge">摄像头</span>
-                            </div>
-
                             <img class="video-stream" id="videoStream" alt="视频流">
                             <div class="video-placeholder" id="videoPlaceholder">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -1118,17 +1037,6 @@
                                     <circle cx="12" cy="13" r="4"/>
                                 </svg>
                                 <p>点击下方按钮启动摄像头</p>
-                            </div>
-
-                            <div class="video-info-bar">
-                                <span class="video-info-text" id="cameraInfo">等待连接...</span>
-                                <div class="confidence-mini">
-                                    <span style="font-size: 11px; color: rgba(255,255,255,0.6);">置信度</span>
-                                    <div class="confidence-bar-mini">
-                                        <div class="confidence-fill-mini" id="confidenceMiniBar" style="width: 0%"></div>
-                                    </div>
-                                    <span style="font-size: 11px; color: rgba(255,255,255,0.8);" id="confidenceMiniText">--%</span>
-                                </div>
                             </div>
                         </div>
 
@@ -1233,6 +1141,12 @@
                                 <button class="btn btn-danger" onclick="batchDeleteSessions()" id="batchDeleteBtn" style="padding: 8px 16px; font-size: 13px; display: none;">删除选中</button>
                                 <button class="btn btn-danger" onclick="deleteAllSessions()" style="padding: 8px 16px; font-size: 13px;">清空全部</button>
                                 <button class="btn btn-secondary" onclick="loadHistory()" style="padding: 8px 16px; font-size: 13px;">刷新</button>
+                                <button class="btn btn-success" onclick="exportCSV()" style="padding: 8px 16px; font-size: 13px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    导出CSV
+                                </button>
                             </div>
                         </div>
                         <div class="card-body" style="padding: 0;">
@@ -1246,7 +1160,12 @@
                                         <th>臂展</th>
                                         <th>腿长</th>
                                         <th>坐高</th>
-                                        <th>置信度</th>
+                                        <th>骨盆宽</th>
+                                        <th>上肢长</th>
+                                        <th>下肢长</th>
+                                        <th>颈臀长</th>
+                                        <th>手长</th>
+                                        <th>足长</th>
                                         <th>操作</th>
                                     </tr>
                                 </thead>
@@ -1512,19 +1431,15 @@
                 btn.disabled = true;
                 btn.innerHTML = '<div class="loading-spinner"></div> 启动中...';
                 updateStatus('connecting', '正在连接...');
-                document.getElementById('modeDisplay').textContent = '启动中';
-                
+
                 try {
                     const response = await fetch(`${API_BASE}/api/start`, { method: 'POST' });
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         isRunning = true;
                         showToast('success', '启动成功', data.message);
                         updateStatus('ready', '测量中');
-                        document.getElementById('modeDisplay').textContent = '测量中';
-                        document.getElementById('cameraBadge').textContent = data.mode || 'RealSense';
-                        document.getElementById('cameraInfo').textContent = data.message || '运行正常';
                         socket.emit('start_stream');
                     } else {
                         showToast('error', '启动失败', data.message);
@@ -1534,40 +1449,38 @@
                     showToast('error', '连接错误', error.message);
                     updateStatus('offline', '连接失败');
                 }
-                
+
                 updateUI();
             } else {
                 btn.disabled = true;
                 btn.innerHTML = '<div class="loading-spinner"></div> 停止中...';
-                
+
                 try {
                     const response = await fetch(`${API_BASE}/api/stop`, { method: 'POST' });
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         isRunning = false;
                         showToast('info', '已停止', data.message);
                         updateStatus('offline', '未连接');
-                        document.getElementById('modeDisplay').textContent = '已停止';
                     }
                 } catch (error) {
                     showToast('error', '停止失败', error.message);
                 }
-                
+
                 updateUI();
             }
         }
 
         function updateUI() {
             const btn = document.getElementById('measureBtn');
-            const liveBadge = document.getElementById('liveBadge');
             const placeholder = document.getElementById('videoPlaceholder');
             const stream = document.getElementById('videoStream');
             const captureBtn = document.getElementById('captureBtn');
             const calibrateBtn = document.getElementById('calibrateBtn');
-            
+
             btn.disabled = false;
-            
+
             if (isRunning) {
                 btn.innerHTML = `
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1578,7 +1491,6 @@
                 `;
                 btn.classList.remove('btn-primary');
                 btn.classList.add('btn-danger');
-                liveBadge.style.display = 'flex';
                 placeholder.style.display = 'none';
                 stream.style.display = 'block';
                 captureBtn.disabled = false;
@@ -1592,7 +1504,6 @@
                 `;
                 btn.classList.remove('btn-danger');
                 btn.classList.add('btn-primary');
-                liveBadge.style.display = 'none';
                 placeholder.style.display = 'flex';
                 stream.style.display = 'none';
                 captureBtn.disabled = true;
@@ -1639,9 +1550,7 @@
             document.getElementById('legLengthValue').innerHTML = (data.leg_length || 0).toFixed(1) + '<span class="measurement-unit">cm</span>';
             document.getElementById('sittingValue').innerHTML = (data.sitting_height || 0).toFixed(1) + '<span class="measurement-unit">cm</span>';
             document.getElementById('confValue').innerHTML = (data.confidence || 0).toFixed(0) + '<span class="measurement-unit">%</span>';
-            
-            document.getElementById('confidenceMiniBar').style.width = (data.confidence || 0) + '%';
-            document.getElementById('confidenceMiniText').textContent = (data.confidence || 0).toFixed(0) + '%';
+
             document.getElementById('updateTime').textContent = new Date().toLocaleTimeString();
             
             currentMeasurements = data;
@@ -1681,16 +1590,22 @@
                     empty.style.display = 'none';
                     table.innerHTML = data.data.map((session, index) => {
                         const time = session.timestamp ? session.timestamp.replace('T', ' ').substring(0, 19) : '';
+                        const f = (v) => (v || 0).toFixed(1);
                         return `
                             <tr data-filename="${session.filename}">
                                 <td><input type="checkbox" class="session-checkbox" data-filename="${session.filename}" onchange="updateBatchDeleteBtn()"></td>
                                 <td>${time}</td>
-                                <td><strong>${(session.height || 0).toFixed(1)}</strong> cm</td>
-                                <td>${(session.shoulder || 0).toFixed(1)} cm</td>
-                                <td>${(session.arm_span || 0).toFixed(1)} cm</td>
-                                <td>${(session.leg_length || 0).toFixed(1)} cm</td>
-                                <td>${(session.sitting_height || 0).toFixed(1)} cm</td>
-                                <td><span style="color: var(--success); font-size: 12px; background: rgba(16,185,129,0.1); padding: 2px 8px; border-radius: 4px;">${(session.confidence || 0).toFixed(0)}%</span></td>
+                                <td><strong>${f(session.height)}</strong></td>
+                                <td>${f(session.shoulder)}</td>
+                                <td>${f(session.arm_span)}</td>
+                                <td>${f(session.leg_length)}</td>
+                                <td>${f(session.sitting_height)}</td>
+                                <td>${f(session.pelvic_width)}</td>
+                                <td>${f(session.upper_limb_length)}</td>
+                                <td>${f(session.lower_limb_length)}</td>
+                                <td>${f(session.trunk_length)}</td>
+                                <td>${f(session.hand_length)}</td>
+                                <td>${f(session.foot_length)}</td>
                                 <td>
                                     <button class="action-btn" onclick="viewSessionDetail('${session.filename}')" title="查看详情">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1860,6 +1775,49 @@
                 }
             } catch (error) {
                 showToast('error', '删除失败', error.message);
+            }
+        }
+
+        async function exportCSV() {
+            try {
+                const response = await fetch(`${API_BASE}/api/sessions`);
+                const data = await response.json();
+                if (!data.success || data.data.length === 0) {
+                    showToast('error', '导出失败', '没有可导出的数据');
+                    return;
+                }
+
+                const headers = ['时间', '身高(cm)', '肩宽(cm)', '臂展(cm)', '腿长(cm)', '坐高(cm)', '骨盆宽(cm)', '上肢长(cm)', '下肢长(cm)', '颈臀长(cm)', '手长(cm)', '足长(cm)'];
+                const rows = data.data.map(s => {
+                    const time = s.timestamp ? s.timestamp.replace('T', ' ').substring(0, 19) : '';
+                    return [
+                        time,
+                        (s.height || 0).toFixed(1),
+                        (s.shoulder || 0).toFixed(1),
+                        (s.arm_span || 0).toFixed(1),
+                        (s.leg_length || 0).toFixed(1),
+                        (s.sitting_height || 0).toFixed(1),
+                        (s.pelvic_width || 0).toFixed(1),
+                        (s.upper_limb_length || 0).toFixed(1),
+                        (s.lower_limb_length || 0).toFixed(1),
+                        (s.trunk_length || 0).toFixed(1),
+                        (s.hand_length || 0).toFixed(1),
+                        (s.foot_length || 0).toFixed(1)
+                    ];
+                });
+
+                const bom = '\uFEFF';
+                const csv = bom + headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `measurements_${new Date().toISOString().slice(0,10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('success', '导出成功', `已导出 ${rows.length} 条记录`);
+            } catch (error) {
+                showToast('error', '导出失败', error.message);
             }
         }
 

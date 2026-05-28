@@ -106,6 +106,7 @@ class AppState:
     images: List[Dict] = None
     measurement_history: List[Dict] = None
     _prev_body_detected: bool = False
+    _body_lost_time: float = 0.0
     _height_warmup_count: int = 0
     # 自动/手动采集模式
     auto_collect: bool = True
@@ -354,7 +355,7 @@ _kalman_filters: Dict[str, SimpleKalmanFilter1D] = {}
 def _get_kalman(key: str, measurement_noise: float = 1.0) -> SimpleKalmanFilter1D:
     if key not in _kalman_filters:
         _kalman_filters[key] = SimpleKalmanFilter1D(
-            process_noise=0.2,
+            process_noise=0.5,
             measurement_noise=measurement_noise,
         )
     return _kalman_filters[key]
@@ -447,9 +448,10 @@ def camera_thread():
                 try:
                     logger.info("Estimator 为空，立即重建...")
                     state.estimator = HolisticEstimator(
-                        model_complexity=1,
-                        min_detection_confidence=0.5,
-                        min_tracking_confidence=0.5
+                        model_complexity=2,
+                        min_detection_confidence=0.2,
+                        min_tracking_confidence=0.2,
+                        enable_hands=False
                     )
                     logger.info("Estimator 重建成功")
                 except Exception as e:
@@ -483,42 +485,46 @@ def camera_thread():
                     result = state.estimator.detect(rgb_frame)
                     
                     detect_log_counter += 1
-                    if detect_log_counter % 60 == 0:
+                    if not result.body_detected and detect_log_counter % 10 == 0:
+                        logger.warning(
+                            f"检测丢失 #{detect_log_counter}: "
+                            f"body={result.body_detected}, "
+                            f"pose_lm={len(result.pose.landmarks) if result.pose.landmarks else 0}, "
+                            f"fallback={state.estimator._fallback_mode}"
+                        )
+                    elif detect_log_counter % 60 == 0:
                         logger.info(
                             f"检测状态: body={result.body_detected}, "
                             f"landmarks={len(result.pose.landmarks)}, "
-                            f"world_lm={len(result.pose.world_landmarks)}, "
-                            f"est_fallback={state.estimator._fallback_mode}, "
-                            f"est_holistic_none={state.estimator._holistic is None}"
+                            f"fallback={state.estimator._fallback_mode}"
                         )
                     
                     display_frame = draw_skeleton(
-                        rgb_frame, result, 
+                        rgb_frame, result,
                         rgb_frame.shape[1], rgb_frame.shape[0]
                     )
                     
-                    if state.latest_result:
-                        display_frame = draw_measurement_overlay(
-                            display_frame, state.latest_result
-                        )
-                    
                     current_time = time.time()
-                    # 检测到新人出现：重置所有滤波器
+                    # 检测到新人出现（连续丢失超过1秒才算真正离开）
                     if result.body_detected and not state._prev_body_detected:
-                        reset_kalman_filters()
-                        state.measurement_history.clear()
-                        state._height_warmup_count = 0
-                        # 重置关键点稳定器（One-Euro 滤波器）
-                        if state.keypoint_stabilizer:
-                            state.keypoint_stabilizer.reset()
-                        # 预热期关闭关键点稳定，让原始坐标直接计算身高
-                        if state.measurement_engine:
-                            state.measurement_engine.enable_keypoint_stabilization = False
-                        # 重置自动采集计时
-                        state._stable_start_time = 0
-                        state._auto_collected = False
-                        state._collect_countdown = 0
-                        logger.info("检测到新人出现，所有滤波器已重置，关键点稳定已暂停")
+                        # 如果距离上次检测丢失不到1秒，视为闪烁，不重置
+                        if state._body_lost_time > 0 and (current_time - state._body_lost_time) < 1.0:
+                            logger.info("检测闪烁恢复，跳过滤波器重置")
+                        else:
+                            reset_kalman_filters()
+                            state.measurement_history.clear()
+                            state._height_warmup_count = 0
+                            if state.keypoint_stabilizer:
+                                state.keypoint_stabilizer.reset()
+                            if state.measurement_engine:
+                                state.measurement_engine.enable_keypoint_stabilization = False
+                            state._stable_start_time = 0
+                            state._auto_collected = False
+                            state._collect_countdown = 0
+                            logger.info("检测到新人出现，所有滤波器已重置")
+                    # 记录检测丢失时间
+                    if not result.body_detected and state._prev_body_detected:
+                        state._body_lost_time = current_time
                     state._prev_body_detected = result.body_detected
 
                     if result.body_detected and state.measurement_engine:
@@ -539,6 +545,22 @@ def camera_thread():
                                 )
                             if measurements:
                                 height_raw = measurements.get('身高') or 0
+                                if not (50 < height_raw < 250):
+                                    # 身高越界，用上次有效值继续 emit，防止前端冻结
+                                    if state.latest_result:
+                                        try:
+                                            _m = state.latest_result
+                                            socketio.emit('measurement', {
+                                                'height': _m.get('身高') or 0,
+                                                'shoulder': _m.get('肩宽') or 0,
+                                                'arm_span': _m.get('臂展') or 0,
+                                                'leg_length': _m.get('腿长') or 0,
+                                                'sitting_height': _m.get('坐高') or 0,
+                                                'confidence': 0.0
+                                            })
+                                            state._last_emit_time = current_time
+                                        except Exception:
+                                            pass
                                 if height_raw > 0 and 50 < height_raw < 250:
                                     # 预热期：直接用原始值，跳过所有滤波
                                     if state._height_warmup_count < 5:
@@ -591,13 +613,16 @@ def camera_thread():
 
                                     try:
                                         socketio.emit('measurement', emit_data)
+                                        state._last_emit_time = current_time
                                     except Exception:
                                         pass
 
                                     # === 自动采集逻辑 ===
                                     if state.auto_collect and state.stability_detector and state._height_warmup_count >= 5:
                                         stability_result = state.stability_detector.get_stability()
-                                        is_stable = stability_result.is_stable
+                                        full_skeleton = state.stability_detector.is_full_skeleton
+                                        is_stable = stability_result.is_stable and full_skeleton
+
                                         if is_stable:
                                             if state._stable_start_time == 0:
                                                 state._stable_start_time = current_time
@@ -605,12 +630,14 @@ def camera_thread():
                                             elapsed = current_time - state._stable_start_time
                                             remaining = max(0, 3.0 - elapsed)
                                             state._collect_countdown = remaining
-                                            # 发送稳定状态给前端
                                             try:
                                                 socketio.emit('stability_status', {
                                                     'stable': True,
+                                                    'skeleton': True,
                                                     'countdown': round(remaining, 1),
-                                                    'progress': round(min(elapsed / 3.0, 1.0), 2)
+                                                    'progress': round(min(elapsed / 3.0, 1.0), 2),
+                                                    'hand_movement': round(stability_result.hand_movement * 100, 1),
+                                                    'foot_movement': round(stability_result.body_movement * 100, 1)
                                                 })
                                             except Exception:
                                                 pass
@@ -628,43 +655,67 @@ def camera_thread():
                                                 except Exception:
                                                     pass
                                         else:
-                                            # 不稳定，重置计时
+                                            # 不稳定或骨骼不完整，重置计时
                                             if state._stable_start_time != 0:
                                                 state._stable_start_time = 0
                                                 state._collect_countdown = 0
-                                                try:
-                                                    socketio.emit('stability_status', {
-                                                        'stable': False,
-                                                        'countdown': 0,
-                                                        'progress': 0
-                                                    })
-                                                except Exception:
-                                                    pass
+                                            reason = 'skeleton' if not full_skeleton else 'movement'
+                                            try:
+                                                socketio.emit('stability_status', {
+                                                    'stable': False,
+                                                    'skeleton': full_skeleton,
+                                                    'countdown': 0,
+                                                    'progress': 0,
+                                                    'reason': reason,
+                                                    'hand_movement': round(stability_result.hand_movement * 100, 1) if stability_result.hand_movement >= 0 else -1,
+                                                    'foot_movement': round(stability_result.body_movement * 100, 1) if stability_result.body_movement >= 0 else -1
+                                                })
+                                            except Exception:
+                                                pass
 
                                     height_val = state.latest_result.get('身高') or 0
                                     if current_time - log_timer > 3:
                                         logger.info(f"测量: 身高={height_val:.1f}cm (原始={height_raw:.1f}cm, warmup={state._height_warmup_count})")
                                         log_timer = current_time
                                 else:
-                                    state.latest_result = measurements
+                                    # 身高越界，跳过不更新，保持上次有效值
+                                    if height_raw > 0 and current_time - log_timer > 5:
+                                        logger.warning(f"异常身高值: {height_raw:.1f}cm, 跳过")
+                                        log_timer = current_time
+                            else:
+                                # measurements=None（计算失败），用上次有效值
+                                if state.latest_result and current_time - getattr(state, '_last_emit_time', 0) > 0.1:
+                                    state._last_emit_time = current_time
                                     try:
+                                        _m = state.latest_result
                                         socketio.emit('measurement', {
-                                            'height': 0,
-                                            'shoulder': measurements.get('肩宽') or 0,
-                                            'arm_span': measurements.get('臂展') or 0,
-                                            'leg_length': measurements.get('腿长') or 0,
-                                            'sitting_height': measurements.get('坐高') or 0,
+                                            'height': _m.get('身高') or 0,
+                                            'shoulder': _m.get('肩宽') or 0,
+                                            'arm_span': _m.get('臂展') or 0,
+                                            'leg_length': _m.get('腿长') or 0,
+                                            'sitting_height': _m.get('坐高') or 0,
                                             'confidence': 0.0
                                         })
                                     except Exception:
                                         pass
-                                    if height_raw > 0 and current_time - log_timer > 5:
-                                        logger.warning(f"异常身高值: {height_raw:.1f}cm, 跳过")
-                                        log_timer = current_time
-                            elif current_time - log_timer > 5:
-                                log_timer = current_time
                         except Exception as e:
                             logger.error(f"Measurement error: {e}")
+                    else:
+                        # body_detected=False 或无引擎：仍发送最后已知数据，防止前端数字冻结
+                        if state.latest_result and current_time - getattr(state, '_last_emit_time', 0) > 0.1:
+                            state._last_emit_time = current_time
+                            try:
+                                _m = state.latest_result
+                                socketio.emit('measurement', {
+                                    'height': _m.get('身高') or 0,
+                                    'shoulder': _m.get('肩宽') or 0,
+                                    'arm_span': _m.get('臂展') or 0,
+                                    'leg_length': _m.get('腿长') or 0,
+                                    'sitting_height': _m.get('坐高') or 0,
+                                    'confidence': 0.0
+                                })
+                            except Exception:
+                                pass
                     
                     display_frame = cv2.cvtColor(display_frame, cv2.COLOR_RGB2BGR)
                 except Exception as e:
@@ -680,15 +731,6 @@ def camera_thread():
                 fps_counter = 0
                 fps_start_time = current_time
             
-            cv2.putText(display_frame, f"FPS: {fps}", 
-                        (display_frame.shape[1] - 100, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            
-            est_status = "Holistic: ON" if state.estimator and state.estimator._holistic else "Holistic: OFF"
-            est_color = (0, 255, 0) if state.estimator and state.estimator._holistic else (0, 0, 255)
-            cv2.putText(display_frame, est_status, 
-                        (display_frame.shape[1] - 200, 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, est_color, 2)
             
             state.current_frame = display_frame
             state._current_fps = fps
@@ -765,9 +807,10 @@ def start_camera():
         try:
             logger.info("正在初始化 HolisticEstimator...")
             state.estimator = HolisticEstimator(
-                model_complexity=1,
-                min_detection_confidence=0.5,
-                min_tracking_confidence=0.5
+                model_complexity=2,
+                min_detection_confidence=0.2,
+                min_tracking_confidence=0.2,
+                enable_hands=False
             )
             logger.info("HolisticEstimator 初始化完成")
         except Exception as e:
@@ -815,9 +858,9 @@ def start_camera():
 
     try:
         state.stability_detector = StabilityDetector(
-            window_size=15,
-            body_threshold=0.015,
-            hand_threshold=0.008
+            window_size=60,         # 2秒@30fps
+            movement_threshold=0.018,  # 手脚移动标准差 < 1.8cm 视为静止
+            min_confidence=0.3
         )
     except Exception as e:
         logger.warning(f"稳定性检测器初始化失败: {e}")
@@ -1094,6 +1137,12 @@ def get_sessions():
                             'arm_span': arm_span,
                             'leg_length': leg_length,
                             'sitting_height': sitting_height,
+                            'pelvic_width': get_val('骨盆宽', 0),
+                            'upper_limb_length': get_val('上肢长', 0),
+                            'lower_limb_length': get_val('下肢长', 0),
+                            'trunk_length': get_val('颈臀长', 0),
+                            'hand_length': get_val('手长', 0),
+                            'foot_length': get_val('足长', 0),
                             'confidence': 85.0 if height > 0 else 0,
                             'has_image': os.path.exists(os.path.join(DATA_DIR, f.replace('.json', '.jpg')))
                         })
@@ -1411,9 +1460,10 @@ def preinit_estimator():
         try:
             logger.info("预初始化 HolisticEstimator...")
             state.estimator = HolisticEstimator(
-                model_complexity=1,
-                min_detection_confidence=0.5,
-                min_tracking_confidence=0.5
+                model_complexity=2,
+                min_detection_confidence=0.2,
+                min_tracking_confidence=0.2,
+                enable_hands=False
             )
             logger.info("预初始化 HolisticEstimator 完成")
         except Exception as e:

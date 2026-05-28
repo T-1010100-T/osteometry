@@ -93,7 +93,7 @@ class MeasurementEngine:
         self.body_segmentation = BodySegmentation(seg_config)
         
         # 配置参数
-        self.min_visibility = _env_float("MEAS_MIN_VISIBILITY", 0.4)
+        self.min_visibility = _env_float("MEAS_MIN_VISIBILITY", 0.2)
         self.linear_scale = _env_float("MEAS_LINEAR_SCALE", 1.0)
 
         # 深度处理开关
@@ -314,7 +314,7 @@ class MeasurementEngine:
         trunk_m = LinearMeasurements.calculate_trunk_length(skeleton_3d)
         foot_length_m = LinearMeasurements.calculate_foot_length(skeleton_3d)
 
-        # 手长：从手部关键点计算（手腕→中指MCP）
+        # 手长：从手部关键点计算（手腕→中指MCP），或从臂长估算
         left_hand_length_m = 0.0
         right_hand_length_m = 0.0
         if result.left_hand and result.left_hand.detected and len(result.left_hand.landmarks_3d) == 21:
@@ -327,6 +327,11 @@ class MeasurementEngine:
             mcp = result.right_hand.landmarks_3d[9]
             if wrist and mcp:
                 right_hand_length_m = ((mcp.x - wrist.x)**2 + (mcp.y - wrist.y)**2 + (mcp.z - wrist.z)**2) ** 0.5
+        # 手部检测不可用时，从前臂长度估算手长（人体比例：手长≈前臂长×0.9）
+        if left_hand_length_m <= 0 and right_hand_length_m <= 0:
+            forearm = bones.get('left_elbow_to_left_wrist') or bones.get('right_elbow_to_right_wrist') or 0.0
+            if forearm > 0:
+                left_hand_length_m = forearm * 0.9
         hand_length_m = 0.0
         if left_hand_length_m > 0 and right_hand_length_m > 0:
             hand_length_m = (left_hand_length_m + right_hand_length_m) / 2
@@ -436,7 +441,7 @@ class MeasurementEngine:
         trunk_m = LinearMeasurements.calculate_trunk_length(skeleton_3d)
         foot_length_m = LinearMeasurements.calculate_foot_length(skeleton_3d)
 
-        # 手长：从手部关键点计算
+        # 手长：从手部关键点计算，或从臂长估算
         left_hand_length_m = 0.0
         right_hand_length_m = 0.0
         if result.left_hand and result.left_hand.detected and len(result.left_hand.landmarks_3d) == 21:
@@ -449,6 +454,11 @@ class MeasurementEngine:
             mcp = result.right_hand.landmarks_3d[9]
             if wrist and mcp:
                 right_hand_length_m = ((mcp.x - wrist.x)**2 + (mcp.y - wrist.y)**2 + (mcp.z - wrist.z)**2) ** 0.5
+        # 手部检测不可用时，从前臂长度估算手长
+        if left_hand_length_m <= 0 and right_hand_length_m <= 0:
+            forearm = bones.get('left_elbow_to_left_wrist') or bones.get('right_elbow_to_right_wrist') or 0.0
+            if forearm > 0:
+                left_hand_length_m = forearm * 0.9
         hand_length_m = 0.0
         if left_hand_length_m > 0 and right_hand_length_m > 0:
             hand_length_m = (left_hand_length_m + right_hand_length_m) / 2
