@@ -1,0 +1,51 @@
+# MediaPipe Holistic 手部集成配置
+
+holistic:
+  enabled: true
+  model_complexity: 1          # 0-2, 推荐1平衡精度速度
+  smooth_landmarks: true
+  enable_segmentation: false
+  refine_face_landmarks: false # 关闭面部精细化
+
+hands:
+  enabled: true
+  detection_confidence: 0.7
+  tracking_confidence: 0.5
+  detection_interval: 1        # 每N帧检测一次 (1=每帧)
+  
+  # ROI优化
+  roi:
+    enabled: true
+    size: 300                  # ROI尺寸 (像素)
+  
+  # 深度处理
+  depth:
+    median_filter_size: 5      # 中值滤波核大小
+    consistency_tolerance: 0.05  # 手腕深度一致性容差 (米)
+
+  # 滤波
+  filter:
+    enabled: true
+    window_size: 5
+    use_kalman: true
+    max_lost_frames: 5         # 最大丢失帧数
+
+gesture:
+  enabled: true
+  stability_threshold: 10      # 触发所需连续帧数
+  confidence_threshold: 0.8
+  
+  # 手势阈值
+  thresholds:
+    fist_curl_distance: 0.03   # 握拳时指尖到MCP距离 (米)
+    open_extend_distance: 0.06 # 张开时指尖到MCP距离 (米)
+    ok_touch_distance: 0.02    # OK手势拇指食指距离 (米)
+
+measurement:
+  min_confidence: 0.7          # 最低置信度阈值
+  filter_window: 5             # 测量值滤波窗口
+
+performance:
+  adaptive_interval: true      # 自适应检测间隔
+  latency_threshold: 120       # 延迟阈值 (ms)
+  fallback_interval: 5         # 降级时的检测间隔

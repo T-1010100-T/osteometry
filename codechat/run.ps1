@@ -1,0 +1,1 @@
+& "$PSScriptRoot\codechat.exe" @args

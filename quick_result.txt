@@ -1,0 +1,4 @@
+estimator: <src.core.holistic_estimator.HolisticEstimator object at 0x0000026635E0C750>
+holistic is None: False
+fallback: False
+OK

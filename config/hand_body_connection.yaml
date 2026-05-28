@@ -1,0 +1,36 @@
+# 手部-身体连接配置
+# Hand-Body Connection Configuration
+
+# 手腕对齐设置
+wrist_alignment:
+  # 是否启用手腕对齐
+  enabled: true
+  # 身体手腕权重 (0-1)
+  # 1.0 = 完全使用身体手腕位置
+  # 0.0 = 完全使用手部手腕位置
+  weight: 0.7
+
+# 深度一致性设置
+depth_consistency:
+  # 是否启用深度一致性检查
+  enabled: true
+  # 最大深度偏差 (米)
+  # 手部点与手腕深度的最大允许偏差
+  max_deviation: 0.08
+
+# 平滑过渡设置
+smooth_transition:
+  # 是否启用平滑过渡
+  enabled: true
+  # 过渡混合因子
+  blend_factor: 0.3
+
+# 置信度阈值
+confidence:
+  # 身体手腕最小可见性
+  min_body_wrist_visibility: 0.5
+  # 手部手腕最小置信度
+  min_hand_wrist_confidence: 0.3
+
+# 环境变量覆盖
+# MEAS_HAND_BODY_CONNECTION=false 可禁用整个功能

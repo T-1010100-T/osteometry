@@ -1,0 +1,75 @@
+# 深度优化配置
+# CycleFitting 深度数据处理参数
+
+# ============================================
+# RealSense 滤镜链配置
+# ============================================
+filter_chain:
+  # 空间滤波 - 单帧内平滑
+  spatial:
+    enabled: true
+    magnitude: 2          # 1-5, 值越大平滑越强
+    smooth_alpha: 0.5     # 0-1, 平滑强度
+    smooth_delta: 20      # 1-50, 边缘保持阈值
+  
+  # 时间滤波 - 帧间平滑
+  temporal:
+    enabled: true
+    smooth_alpha: 0.4     # 0-1, 时间平滑强度
+    smooth_delta: 20      # 1-100, 持久性阈值
+  
+  # 孔洞填充
+  hole_filling:
+    enabled: true
+    mode: 1               # 0=关闭, 1=最近邻, 2=远距离
+
+# ============================================
+# 深度处理器配置
+# ============================================
+depth_processor:
+  # 深度图增强
+  enable_enhancement: true
+  enable_hole_filling: true
+  max_hole_size: 5        # 最大填充孔洞尺寸（像素）
+  
+  # 双边滤波参数
+  bilateral:
+    d: 5                  # 滤波直径
+    sigma_color: 0.1      # 颜色空间标准差
+    sigma_space: 3.0      # 坐标空间标准差
+
+# ============================================
+# 自适应深度采样器配置
+# ============================================
+sampler:
+  # 默认参数
+  default_window_size: 7
+  default_foreground_ratio: 0.6
+  default_method: "median"  # median, mean, trimmed_mean, robust_mean
+  
+  # 时序一致性检查
+  temporal_consistency:
+    enabled: true
+    max_change_ratio: 0.1   # 最大帧间变化率
+    history_size: 5         # 历史缓冲区大小
+  
+  # 身体部位采样策略
+  # 格式: 部位名称: [窗口大小, 前景比例, 统计方法]
+  body_part_strategies:
+    shoulder: [11, 0.4, "robust_mean"]
+    elbow: [7, 0.6, "median"]
+    wrist: [5, 0.7, "trimmed_mean"]
+    hip: [13, 0.3, "median"]
+    knee: [9, 0.5, "robust_mean"]
+    ankle: [7, 0.6, "median"]
+    head: [9, 0.5, "median"]
+    torso: [15, 0.3, "robust_mean"]
+    foot: [5, 0.7, "median"]
+    hand: [5, 0.8, "trimmed_mean"]
+
+# ============================================
+# 环境变量覆盖
+# ============================================
+# 以下环境变量可覆盖配置：
+# MEAS_DEPTH_ENHANCEMENT=true/false  - 启用/禁用深度增强
+# MEAS_MIN_VISIBILITY=0.4            - 最小可见性阈值

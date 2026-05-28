@@ -1,0 +1,118 @@
+# CycleFitting 身体测量系统 - 实际配置
+# 注意：只包含已实现的配置项
+
+system:
+  name: "CycleFitting Body Measurement System"
+  version: "1.0.0"
+  log_level: "INFO"
+
+# 相机配置 (已实现)
+camera:
+  resolution:
+    width: 640
+    height: 480
+  fps: 30
+
+# 数据采集配置 (已实现)
+collection:
+  required_stable_frames: 30   # 触发采集所需稳定帧数
+  countdown_seconds: 2.0       # 倒计时时长
+  sampling_window_seconds: 3.0 # 采样窗口时长
+  sampling_target_frames: 10   # 目标采样帧数
+  level_threshold: 3.0         # 水平检测阈值（度）
+  output_dir: "data/sessions"  # 数据输出目录
+
+# 测量配置 (已实现)
+measurement:
+  min_visibility: 0.4          # 最小可见性阈值
+  depth_range: [0.3, 4.0]      # 有效深度范围（米）
+  # 线性缩放系数（通过环境变量 MEAS_LINEAR_SCALE 覆盖）
+  linear_scale: 1.0
+
+# 深度处理配置 (已实现)
+depth_processing:
+  enable_enhancement: true     # 启用深度图增强
+  enable_hole_filling: true    # 启用孔洞填充
+  max_hole_size: 5             # 最大填充孔洞尺寸（像素）
+  bilateral_d: 5               # 双边滤波直径
+  bilateral_sigma_color: 0.1   # 颜色空间标准差
+  bilateral_sigma_space: 3.0   # 坐标空间标准差
+
+# 深度采样配置 (已实现)
+depth_sampling:
+  default_window_size: 7
+  default_foreground_ratio: 0.6
+  default_method: "median"     # median, mean, trimmed_mean, robust_mean
+  enable_temporal_check: true
+  max_change_ratio: 0.1
+  history_size: 5
+
+# 关键点稳定配置 (已实现)
+keypoint_stabilization:
+  enable_2d: true
+  enable_3d: true
+  freq: 30.0                   # 采样频率（Hz）
+  # 2D滤波参数
+  filter_2d:
+    mincutoff: 1.0
+    beta: 0.05
+    dcutoff: 1.0
+  # 3D滤波参数
+  filter_3d:
+    mincutoff: 0.5
+    beta: 0.1
+    dcutoff: 1.0
+  # 置信度阈值
+  low_confidence_threshold: 0.3
+  medium_confidence_threshold: 0.6
+  # 异常值检测
+  max_jump_2d: 50.0            # 最大2D跳变（像素）
+  max_jump_3d: 0.1             # 最大3D跳变（米）
+  history_size: 5
+
+# 生物力学约束配置 (已实现)
+biomechanical_constraints:
+  enable: true
+  enable_proportion_check: true
+  proportion_tolerance: 0.1    # 允许超出范围 10%
+  enable_symmetry_check: true
+  symmetry_threshold: 0.08     # 8% 差异阈值
+  # 身高范围（米）
+  min_height: 1.4
+  max_height: 2.2
+
+# 可视化配置 (已实现)
+visualization:
+  show_skeleton: true
+  show_landmarks: true
+  show_measurements: true
+  skeleton_color: [0, 255, 0]  # BGR
+  landmark_color: [0, 0, 255]  # BGR
+  text_color: [255, 255, 255]  # BGR
+
+# 输出配置 (已实现)
+output:
+  save_images: true
+  image_format: "jpg"
+  image_quality: 90
+  output_dir: "data/sessions"
+
+# RealSense 滤镜链配置 (已实现)
+realsense_filter_chain:
+  spatial:
+    enabled: true
+    magnitude: 2
+    smooth_alpha: 0.5
+    smooth_delta: 20
+    holes_fill: 1
+  temporal:
+    enabled: true
+    smooth_alpha: 0.4
+    smooth_delta: 20
+    persistence: 3
+  hole_filling:
+    enabled: true
+    mode: 1
+
+# --- 以下配置尚未实现，请勿使用 ---
+# (已删除未实现配置：pose.model_complexity, kalman_filter, 围度测量, PDF输出, 语音引导等)

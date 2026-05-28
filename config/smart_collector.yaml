@@ -1,0 +1,53 @@
+# 智能数据采集器配置
+# Smart Data Collector Configuration
+
+# 稳定性检测配置
+stability:
+  # 检测窗口大小（帧数）
+  window_size: 10
+  # 身体稳定阈值（米）- 移动标准差低于此值视为稳定
+  body_threshold: 0.02
+  # 手部稳定阈值（米）
+  hand_threshold: 0.01
+
+# 多帧融合配置
+fusion:
+  # 融合帧数
+  frames: 5
+  # IQR倍数，用于异常值检测
+  iqr_multiplier: 1.5
+  # 最小有效帧数
+  min_frames: 3
+
+# 质量评分配置
+quality:
+  # 权重配置（总和应为1.0）
+  weights:
+    confidence: 0.5
+    stability: 0.4
+    completeness: 0.1
+  # 阈值配置
+  thresholds:
+    # 高于此值自动保存
+    auto_save: 0.8
+    # 高于此值需要确认
+    confirm: 0.6
+  # 最小可见性阈值
+  min_visibility: 0.5
+
+# 解剖学验证配置
+anatomy:
+  # 左右对称容差（百分比）
+  symmetry_tolerance: 0.05
+
+# 会话管理配置
+session:
+  # 输出目录
+  output_dir: "data/sessions"
+  # 是否自动保存
+  auto_save: true
+
+# 采集流程配置
+capture:
+  # 就绪后倒计时（秒）
+  ready_countdown: 3.0
