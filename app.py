@@ -540,8 +540,14 @@ def camera_thread():
                                     timestamp=current_time
                                 )
                             else:
+                                # 获取相机内参（用于像素→厘米转换）
+                                cam_intrinsics = None
+                                if state.camera and state.camera.state and state.camera.state.transformer:
+                                    cam_intrinsics = state.camera.state.transformer.intrinsics
                                 measurements = state.measurement_engine.calculate_measurements_from_world_landmarks(
-                                    result, timestamp=current_time
+                                    result, timestamp=current_time,
+                                    image_width=rgb_frame.shape[1], image_height=rgb_frame.shape[0],
+                                    intrinsics=cam_intrinsics
                                 )
                             if measurements:
                                 height_raw = measurements.get('身高') or 0

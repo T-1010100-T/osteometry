@@ -390,19 +390,254 @@ class MeasurementEngine:
 
         return measurements
 
-    def calculate_measurements_from_world_landmarks(
-        self, result: Any, timestamp: Optional[float] = None
+    def _calculate_from_pixel_landmarks(
+        self, result: Any, img_w: int, img_h: int,
+        intrinsics: Any, timestamp: float
     ) -> Optional[Dict[str, Optional[float]]]:
         """
-        使用 MediaPipe pose_world_landmarks 计算测量值（无需深度图）
+        使用 2D 像素关键点 + 身体比例法计算测量值
+
+        核心原理：身高与头肩距的比值在不同距离下恒定
+            real_height = height_px / ref_px * ref_real_cm
+
+        水平测量用针孔模型 + 距离估算：
+            distance_est = fx * ref_real / ref_px
+            horizontal_cm = px * distance_est / fx
+
+        Args:
+            result: HolisticResult 检测结果
+            img_w, img_h: 图像尺寸（像素）
+            intrinsics: 相机内参（含 fx, fy）
+            timestamp: 时间戳
+        Returns:
+            测量值字典（单位：cm），或 None
+        """
+        lm = result.pose.landmarks
+        min_vis = min(self.min_visibility, 0.2)
+
+        def _px(idx: int) -> Optional[Tuple[float, float]]:
+            """获取关键点的像素坐标，不可见则返回 None"""
+            if idx >= len(lm):
+                return None
+            p = lm[idx]
+            if p.visibility < min_vis:
+                return None
+            return (p.x * img_w, p.y * img_h)
+
+        # 常用关键点索引
+        NOSE, L_SHOULDER, R_SHOULDER = 0, 11, 12
+        L_HIP, R_HIP = 23, 24
+        L_KNEE, R_KNEE = 25, 26
+        L_ANKLE, R_ANKLE = 27, 28
+        L_ELBOW, R_ELBOW = 13, 14
+        L_WRIST, R_WRIST = 15, 16
+        L_PINKY, R_PINKY = 17, 18
+        L_INDEX, R_INDEX = 19, 20
+        L_HEEL, R_HEEL = 29, 30
+        L_FOOT_INDEX, R_FOOT_INDEX = 31, 32
+
+        def _mid_px(a: Tuple[float, float], b: Tuple[float, float]) -> Tuple[float, float]:
+            return ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+
+        def _y_dist(a: Tuple[float, float], b: Tuple[float, float]) -> float:
+            return abs(a[1] - b[1])
+
+        def _euclid(a: Tuple[float, float], b: Tuple[float, float]) -> float:
+            return ((a[0] - b[0])**2 + (a[1] - b[1])**2) ** 0.5
+
+        # --- 参照物：头肩距（鼻→肩中心 Y 轴距离，像素）---
+        nose_px = _px(NOSE)
+        ls_px = _px(L_SHOULDER)
+        rs_px = _px(R_SHOULDER)
+        if not nose_px or not (ls_px or rs_px):
+            return None
+
+        if ls_px and rs_px:
+            sc_px = _mid_px(ls_px, rs_px)
+        else:
+            sc_px = ls_px or rs_px
+
+        ref_px = _y_dist(nose_px, sc_px)
+        # 头肩距（鼻→肩中心）≈ 24cm（成人平均值）
+        REF_REAL_CM = 24.0
+
+        if ref_px < 5:
+            return None
+
+        # --- 身高（Y 轴像素距离累加 + 比例转换）---
+        lh_px = _px(L_HIP)
+        rh_px = _px(R_HIP)
+        lk_px = _px(L_KNEE)
+        rk_px = _px(R_KNEE)
+        la_px = _px(L_ANKLE)
+        ra_px = _px(R_ANKLE)
+
+        if lh_px and rh_px:
+            hc_px = _mid_px(lh_px, rh_px)
+        else:
+            hc_px = lh_px or rh_px
+
+        height_px = 0.0
+        has_lower = False
+
+        if hc_px:
+            height_px += _y_dist(nose_px, sc_px)     # 颈段
+            height_px += _y_dist(sc_px, hc_px)       # 躯干
+
+            if (lk_px or rk_px) and (la_px or ra_px):
+                k_px = _mid_px(lk_px, rk_px) if (lk_px and rk_px) else (lk_px or rk_px)
+                a_px = _mid_px(la_px, ra_px) if (la_px and ra_px) else (la_px or ra_px)
+                if k_px and a_px:
+                    height_px += _y_dist(hc_px, k_px)  # 大腿
+                    height_px += _y_dist(k_px, a_px)   # 小腿
+                    has_lower = True
+
+        if height_px < ref_px:
+            return None
+
+        # 身高 = height_px / ref_px * REF_REAL_CM（比值法，与距离无关）
+        if has_lower:
+            height_cm = (height_px / ref_px) * REF_REAL_CM
+        else:
+            # 仅有上半身时，从上半身比例估算全长
+            # 上半身（鼻→髋）约占身高 48%
+            upper_body_cm = (height_px / ref_px) * REF_REAL_CM
+            height_cm = upper_body_cm / 0.48
+
+        # --- 水平测量（针孔模型 + 距离估算）---
+        # 从参照物估算距离：D = fx * ref_real / ref_px
+        # 然后：horizontal_cm = px * D / fx = px * ref_real / ref_px
+        fx = intrinsics.fx if intrinsics and hasattr(intrinsics, 'fx') and intrinsics.fx > 0 else (img_w * 1.2)
+
+        def _h_measure_cm(px_dist: float) -> float:
+            """将像素水平距离转换为厘米"""
+            return (px_dist * REF_REAL_CM) / ref_px
+
+        # --- 肩宽 ---
+        shoulder_cm = 0.0
+        if ls_px and rs_px:
+            shoulder_cm = _h_measure_cm(_euclid(ls_px, rs_px))
+
+        # --- 臂展 ---
+        arm_span_cm = 0.0
+        lw_px = _px(L_WRIST)
+        rw_px = _px(R_WRIST)
+        if lw_px and rw_px:
+            arm_span_cm = _h_measure_cm(_euclid(lw_px, rw_px))
+
+        # --- 腿长 ---
+        leg_cm = 0.0
+        if hc_px and (la_px or ra_px):
+            a_px = _mid_px(la_px, ra_px) if (la_px and ra_px) else (la_px or ra_px)
+            if a_px:
+                leg_cm = _h_measure_cm(_euclid(hc_px, a_px))
+
+        # --- 坐高 ---
+        sitting_cm = 0.0
+        if hc_px:
+            sitting_cm = (height_cm * 0.48) if not has_lower else (height_cm * 0.52)
+
+        # --- 骨盆宽 ---
+        pelvic_cm = 0.0
+        if lh_px and rh_px:
+            pelvic_cm = _h_measure_cm(_euclid(lh_px, rh_px))
+
+        # --- 上肢长 ---
+        upper_limb_cm = 0.0
+        le_px = _px(L_ELBOW)
+        re_px = _px(R_ELBOW)
+        if ls_px and le_px and lw_px:
+            upper_limb_cm = _h_measure_cm(_euclid(ls_px, le_px) + _euclid(le_px, lw_px))
+        elif rs_px and re_px and rw_px:
+            upper_limb_cm = _h_measure_cm(_euclid(rs_px, re_px) + _euclid(re_px, rw_px))
+
+        # --- 下肢长 ---
+        lower_limb_cm = 0.0
+        if lh_px and la_px:
+            lower_limb_cm = _h_measure_cm(_euclid(lh_px, la_px))
+        elif rh_px and ra_px:
+            lower_limb_cm = _h_measure_cm(_euclid(rh_px, ra_px))
+
+        # --- 颈臀长 ---
+        trunk_cm = 0.0
+        if hc_px:
+            trunk_cm = _h_measure_cm(_y_dist(nose_px, hc_px))
+
+        # --- 足长 ---
+        foot_cm = 0.0
+        l_heel_px = _px(L_HEEL)
+        r_heel_px = _px(R_HEEL)
+        l_fi_px = _px(L_FOOT_INDEX)
+        r_fi_px = _px(R_FOOT_INDEX)
+        if l_heel_px and l_fi_px:
+            foot_cm = _h_measure_cm(_euclid(l_heel_px, l_fi_px))
+        elif r_heel_px and r_fi_px:
+            foot_cm = _h_measure_cm(_euclid(r_heel_px, r_fi_px))
+        elif la_px and lk_px:
+            # 从小腿长估算足长（足长 ≈ 小腿长 × 0.55）
+            calf_px = _euclid(lk_px, la_px) if (lk_px and la_px) else 0
+            if calf_px > 0:
+                foot_cm = _h_measure_cm(calf_px) * 0.55
+
+        # 手长估算
+        hand_cm = 0.0
+        if le_px and lw_px:
+            forearm_cm = _h_measure_cm(_euclid(le_px, lw_px))
+            hand_cm = forearm_cm * 0.9
+        elif re_px and rw_px:
+            forearm_cm = _h_measure_cm(_euclid(re_px, rw_px))
+            hand_cm = forearm_cm * 0.9
+
+        # 应用 linear_scale
+        s = self.linear_scale
+        measurements = {
+            '身高': round(height_cm * s, 1) if height_cm > 0 else None,
+            '肩宽': round(shoulder_cm * s, 1) if shoulder_cm > 0 else None,
+            '臂展': round(arm_span_cm * s, 1) if arm_span_cm > 0 else None,
+            '腿长': round(leg_cm * s, 1) if leg_cm > 0 else None,
+            '坐高': round(sitting_cm * s, 1) if sitting_cm > 0 else None,
+            '骨盆宽': round(pelvic_cm * s, 1) if pelvic_cm > 0 else None,
+            '上肢长': round(upper_limb_cm * s, 1) if upper_limb_cm > 0 else None,
+            '下肢长': round(lower_limb_cm * s, 1) if lower_limb_cm > 0 else None,
+            '颈臀长': round(trunk_cm * s, 1) if trunk_cm > 0 else None,
+            '手长': round(hand_cm * s, 1) if hand_cm > 0 else None,
+            '足长': round(foot_cm * s, 1) if foot_cm > 0 else None,
+        }
+
+        logger.debug(f"像素比例法: ref_px={ref_px:.1f}, height_px={height_px:.1f}, "
+                     f"height_cm={height_cm:.1f}, shoulder_cm={shoulder_cm:.1f}")
+
+        if self.enable_biomechanical_constraints and self.biomechanical_constraints is not None:
+            try:
+                self.last_constraints_result = self.biomechanical_constraints.validate(measurements)
+            except Exception:
+                self.last_constraints_result = None
+
+        return measurements
+
+    def calculate_measurements_from_world_landmarks(
+        self, result: Any, timestamp: Optional[float] = None,
+        image_width: int = 0, image_height: int = 0,
+        intrinsics: Any = None
+    ) -> Optional[Dict[str, Optional[float]]]:
+        """
+        使用 MediaPipe 2D 像素关键点计算测量值（无需深度图）
 
         适用于 OpenCV 模式（无 RealSense 深度相机）。
-        MediaPipe 的 world_landmarks 提供了以髋部中心为原点的 3D 坐标（单位：米），
-        可以直接用于计算身高、肩宽等测量值。
+        使用 2D 像素坐标 + 身体比例法（头肩距参照物）将像素距离转换为厘米。
+        此方法不依赖 world_landmarks 的绝对米制坐标（它们不可靠）。
+
+        原理：
+        - 身高与头肩距的比值是恒定的（与距离无关）
+        - real_height = height_px / ref_px * ref_real_cm
+        - 水平测量用针孔模型：cm = px * D / f，D 从参照物推算
 
         Args:
             result: HolisticResult 检测结果
             timestamp: 时间戳
+            image_width: 图像宽度（像素）
+            image_height: 图像高度（像素）
+            intrinsics: 相机内参（可选，用于水平测量的距离估算）
 
         Returns:
             测量值字典（单位：cm），或 None
@@ -410,11 +645,18 @@ class MeasurementEngine:
         if not result.pose.detected:
             return None
 
-        if not result.pose.world_landmarks or len(result.pose.world_landmarks) < 33:
-            return None
-
         if timestamp is None:
             timestamp = time.time()
+
+        # 优先用 2D 像素坐标 + 身体比例法
+        if image_width > 0 and image_height > 0 and result.pose.landmarks and len(result.pose.landmarks) >= 33:
+            return self._calculate_from_pixel_landmarks(
+                result, image_width, image_height, intrinsics, timestamp
+            )
+
+        # 回退到 world_landmarks（精度差，但总比没有好）
+        if not result.pose.world_landmarks or len(result.pose.world_landmarks) < 33:
+            return None
 
         wl = result.pose.world_landmarks
 
