@@ -57,17 +57,11 @@ class LinearMeasurements:
         # 计算偏差比例
         deviation = abs(raw_value - expected_value) / expected_value
 
-        # 如果偏差超过容忍度，使用期望值
-        if deviation > tolerance:
-            logger.info(f"测量校准: raw={raw_value:.3f}m, expected={expected_value:.3f}m, "
-                        f"deviation={deviation:.1%}, using expected")
-            return expected_value
-
-        # 否则使用加权平均（原始值权重更高）
-        weight = 1.0 - deviation / tolerance  # 偏差越小，原始值权重越高
-        calibrated = weight * raw_value + (1 - weight) * expected_value
+        # 连续加权：偏差越大，期望值权重越高，但永远保留至少15%原始值
+        weight_raw = max(0.15, 1.0 - deviation / (tolerance * 2))
+        calibrated = weight_raw * raw_value + (1 - weight_raw) * expected_value
         logger.info(f"测量校准: raw={raw_value:.3f}m, expected={expected_value:.3f}m, "
-                    f"deviation={deviation:.1%}, calibrated={calibrated:.3f}m")
+                    f"deviation={deviation:.1%}, weight_raw={weight_raw:.2f}, calibrated={calibrated:.3f}m")
         return calibrated
 
     @staticmethod
