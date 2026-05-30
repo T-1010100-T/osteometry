@@ -448,7 +448,7 @@ def camera_thread():
                 try:
                     logger.info("Estimator 为空，立即重建...")
                     state.estimator = HolisticEstimator(
-                        model_complexity=2,
+                        model_complexity=1,
                         min_detection_confidence=0.2,
                         min_tracking_confidence=0.2,
                         enable_hands=False
@@ -813,7 +813,7 @@ def start_camera():
         try:
             logger.info("正在初始化 HolisticEstimator...")
             state.estimator = HolisticEstimator(
-                model_complexity=2,
+                model_complexity=1,
                 min_detection_confidence=0.2,
                 min_tracking_confidence=0.2,
                 enable_hands=False
@@ -1466,7 +1466,7 @@ def preinit_estimator():
         try:
             logger.info("预初始化 HolisticEstimator...")
             state.estimator = HolisticEstimator(
-                model_complexity=2,
+                model_complexity=1,
                 min_detection_confidence=0.2,
                 min_tracking_confidence=0.2,
                 enable_hands=False
