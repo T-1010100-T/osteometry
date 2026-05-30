@@ -20,6 +20,7 @@ from .frame_fusion import FrameFusion
 from .session_manager import SessionManager
 from .hand_result import HolisticResult
 from ..utils.logger import get_logger
+from collections import deque
 
 # 使用 TYPE_CHECKING 避免循环导入
 if TYPE_CHECKING:
@@ -82,11 +83,16 @@ class SmartDataCollector:
         self._state = CollectorState.IDLE
         self._ready_start_time: Optional[float] = None
         self._ready_countdown = 3.0  # 就绪后倒计时秒数
-        
+
         # 缓存
         self._last_stability: Optional[StabilityResult] = None
         self._last_quality: Optional[QualityResult] = None
         self._last_holistic: Optional[HolisticResult] = None
+
+        # 测量数值稳定性检测
+        self._measurement_buffer: deque = deque(maxlen=15)  # 保留最近15帧
+        self._measurement_stable_threshold = 0.005  # 身高变化阈值（米）= 0.5cm
+        self._measurement_stable_required = 8  # 需要连续N帧稳定
         
         logger.info("SmartDataCollector 初始化完成")
 
@@ -189,24 +195,43 @@ class SmartDataCollector:
         self._stability_detector.add_frame(holistic_result)
         stability = self._stability_detector.get_stability()
         self._last_stability = stability
-        
+
         # 如果不再稳定，返回监测状态
         if not stability.is_stable:
             self._state = CollectorState.MONITORING
             self._ready_start_time = None
+            self._measurement_buffer.clear()
             logger.debug("用户移动，返回监测状态")
             return self.get_status()
-        
+
+        # 检查测量数值稳定性
+        measurement_stable = self._check_measurement_stability(body_measurement)
+        stability.measurement_stable = measurement_stable
+
+        if not measurement_stable:
+            # 数值还在收敛中，重置倒计时
+            self._ready_start_time = time.time()
+            return CollectorStatus(
+                state=self._state,
+                stability_progress=1.0,
+                message="数值收敛中，请保持不动...",
+                region_status={
+                    'body': stability.body_stable,
+                    'left_hand': stability.left_hand_stable,
+                    'right_hand': stability.right_hand_stable
+                }
+            )
+
         # 检查倒计时
         elapsed = time.time() - self._ready_start_time
         remaining = max(0, self._ready_countdown - elapsed)
-        
+
         if remaining <= 0:
             # 开始采集
             self._state = CollectorState.CAPTURING
             self._frame_fusion.reset()
             logger.info("开始采集数据")
-        
+
         return CollectorStatus(
             state=self._state,
             stability_progress=1.0,
@@ -318,6 +343,44 @@ class SmartDataCollector:
             return "正在检测稳定性..."
         else:
             return "即将开始采集..."
+
+    def _check_measurement_stability(
+        self,
+        body_measurement: Optional[MeasurementResult]
+    ) -> bool:
+        """
+        检查测量数值是否稳定
+
+        Args:
+            body_measurement: 身体测量结果
+
+        Returns:
+            数值是否稳定
+        """
+        if body_measurement is None or not body_measurement.is_valid:
+            return False
+
+        # 记录身高等关键测量值
+        height = body_measurement.height
+        self._measurement_buffer.append(height)
+
+        # 缓冲区不足时认为不稳定
+        if len(self._measurement_buffer) < self._measurement_stable_required:
+            return False
+
+        # 计算最近N帧的变化范围
+        recent_values = list(self._measurement_buffer)[-self._measurement_stable_required:]
+        value_range = max(recent_values) - min(recent_values)
+
+        # 变化范围小于阈值，认为数值稳定
+        is_stable = value_range < self._measurement_stable_threshold
+
+        if is_stable:
+            logger.debug(f"测量数值已稳定: range={value_range:.4f}m, threshold={self._measurement_stable_threshold}m")
+        else:
+            logger.debug(f"测量数值未稳定: range={value_range:.4f}m, threshold={self._measurement_stable_threshold}m")
+
+        return is_stable
     
     def force_capture(self) -> Optional[str]:
         """
@@ -362,6 +425,7 @@ class SmartDataCollector:
         self._stability_detector.reset()
         self._frame_fusion.reset()
         self._ready_start_time = None
+        self._measurement_buffer.clear()
         logger.info("采集已取消")
     
     def reset(self) -> None:

@@ -33,7 +33,7 @@ class CollectorState(Enum):
 class StabilityResult:
     """
     稳定性检测结果
-    
+
     Attributes:
         is_stable: 是否稳定
         progress: 稳定进度 0.0-1.0
@@ -43,6 +43,7 @@ class StabilityResult:
         body_movement: 身体移动量（米）
         hand_movement: 手部移动量（米）
         stable_frames: 连续稳定帧数
+        measurement_stable: 测量数值是否稳定
     """
     is_stable: bool = False
     progress: float = 0.0
@@ -52,6 +53,7 @@ class StabilityResult:
     body_movement: float = 0.0
     hand_movement: float = 0.0
     stable_frames: int = 0
+    measurement_stable: bool = False
 
     
     def to_dict(self) -> Dict[str, Any]:
