@@ -18,7 +18,58 @@ class LinearMeasurements:
     """
     线性尺寸测量类
     """
+
+    # 人体比例常数（相对于身高）
+    BODY_RATIOS = {
+        'arm_span': 1.0,           # 臂展 ≈ 身高
+        'sitting_height': 0.52,    # 坐高 ≈ 身高 × 0.52
+        'shoulder_width': 0.265,   # 肩宽 ≈ 身高 × 0.265
+        'upper_limb': 0.40,        # 上肢长 ≈ 身高 × 0.40
+        'lower_limb': 0.48,        # 下肢长 ≈ 身高 × 0.48
+        'pelvic_width': 0.18,      # 骨盆宽 ≈ 身高 × 0.18
+        'foot_length': 0.15,       # 足长 ≈ 身高 × 0.15
+        'trunk': 0.30,             # 颈臀长 ≈ 身高 × 0.30
+    }
     
+    @staticmethod
+    def calibrate_measurement(raw_value: float, expected_ratio: float, height: float, tolerance: float = 0.5) -> float:
+        """
+        使用身高校准测量值
+
+        如果原始值与期望值（身高×比例）差异超过容忍度，使用期望值。
+
+        Args:
+            raw_value: 原始测量值（米）
+            expected_ratio: 期望比例（相对于身高）
+            height: 身高（米）
+            tolerance: 容忍度（0-1，0.5表示允许50%误差）
+
+        Returns:
+            校准后的测量值（米）
+        """
+        if raw_value <= 0 or height <= 0:
+            return raw_value
+
+        expected_value = height * expected_ratio
+        if expected_value <= 0:
+            return raw_value
+
+        # 计算偏差比例
+        deviation = abs(raw_value - expected_value) / expected_value
+
+        # 如果偏差超过容忍度，使用期望值
+        if deviation > tolerance:
+            logger.info(f"测量校准: raw={raw_value:.3f}m, expected={expected_value:.3f}m, "
+                        f"deviation={deviation:.1%}, using expected")
+            return expected_value
+
+        # 否则使用加权平均（原始值权重更高）
+        weight = 1.0 - deviation / tolerance  # 偏差越小，原始值权重越高
+        calibrated = weight * raw_value + (1 - weight) * expected_value
+        logger.info(f"测量校准: raw={raw_value:.3f}m, expected={expected_value:.3f}m, "
+                    f"deviation={deviation:.1%}, calibrated={calibrated:.3f}m")
+        return calibrated
+
     @staticmethod
     def calculate_height(skeleton: Skeleton3D) -> float:
         """
@@ -134,14 +185,63 @@ class LinearMeasurements:
     
     @staticmethod
     def calculate_arm_span(skeleton: Skeleton3D) -> float:
-        """计算臂展"""
+        """
+        计算臂展（双臂展开总长度）
+
+        臂展 = 左上肢长 + 肩宽 + 右上肢长
+        上肢长 = 肩峰到中指MCP（或手腕+手长估算）
+        """
+        left_shoulder = skeleton.get_joint('left_shoulder')
+        right_shoulder = skeleton.get_joint('right_shoulder')
         left_wrist = skeleton.get_joint('left_wrist')
         right_wrist = skeleton.get_joint('right_wrist')
-        
-        if not left_wrist or not right_wrist:
-            return 0.0
-        
-        return calculate_distance(left_wrist, right_wrist)
+        left_elbow = skeleton.get_joint('left_elbow')
+        right_elbow = skeleton.get_joint('right_elbow')
+        left_index = skeleton.get_joint('left_index')
+        right_index = skeleton.get_joint('right_index')
+
+        # 计算肩宽
+        shoulder_width = 0.0
+        if left_shoulder and right_shoulder:
+            shoulder_width = calculate_distance(left_shoulder, right_shoulder)
+
+        # 计算左上肢长（肩→肘→腕→手指MCP）
+        left_arm = 0.0
+        if left_shoulder and left_elbow and left_wrist:
+            left_arm = calculate_distance(left_shoulder, left_elbow)
+            left_arm += calculate_distance(left_elbow, left_wrist)
+            # 如果有手指点，加上手长
+            if left_index:
+                left_arm += calculate_distance(left_wrist, left_index)
+            else:
+                # 估算手长 ≈ 前臂长 × 0.45
+                forearm = calculate_distance(left_elbow, left_wrist)
+                left_arm += forearm * 0.45
+
+        # 计算右上肢长
+        right_arm = 0.0
+        if right_shoulder and right_elbow and right_wrist:
+            right_arm = calculate_distance(right_shoulder, right_elbow)
+            right_arm += calculate_distance(right_elbow, right_wrist)
+            if right_index:
+                right_arm += calculate_distance(right_wrist, right_index)
+            else:
+                forearm = calculate_distance(right_elbow, right_wrist)
+                right_arm += forearm * 0.45
+
+        # 臂展 = 左上肢 + 肩宽 + 右上肢
+        if left_arm > 0 and right_arm > 0:
+            return left_arm + shoulder_width + right_arm
+        elif left_arm > 0:
+            return left_arm * 2 + shoulder_width
+        elif right_arm > 0:
+            return right_arm * 2 + shoulder_width
+
+        # 回退：使用手腕间距（不准确，但总比0好）
+        if left_wrist and right_wrist:
+            return calculate_distance(left_wrist, right_wrist) * 1.5
+
+        return 0.0
     
     @staticmethod
     def calculate_leg_length(skeleton: Skeleton3D) -> float:
@@ -161,7 +261,11 @@ class LinearMeasurements:
     
     @staticmethod
     def calculate_sitting_height(skeleton: Skeleton3D) -> float:
-        """计算坐高"""
+        """
+        计算坐高（头顶到坐骨结节的垂直距离）
+
+        使用Y轴垂直距离：头顶补偿 + 鼻梁到髋部中心
+        """
         nose = skeleton.get_joint('nose')
         left_hip = skeleton.get_joint('left_hip')
         right_hip = skeleton.get_joint('right_hip')
@@ -171,7 +275,10 @@ class LinearMeasurements:
 
         hip_center_y = (left_hip.y + right_hip.y) / 2
 
-        return abs(nose.y - hip_center_y)
+        # 头顶补偿（鼻梁到头顶约12cm）
+        head_top = 0.12
+
+        return head_top + abs(nose.y - hip_center_y)
 
     @staticmethod
     def calculate_pelvic_width(skeleton: Skeleton3D) -> float:
@@ -184,14 +291,36 @@ class LinearMeasurements:
 
     @staticmethod
     def calculate_upper_limb_length(skeleton: Skeleton3D) -> float:
-        """计算上肢长（肩峰→桡骨茎突，取左右平均）"""
-        left_shoulder = skeleton.get_joint('left_shoulder')
-        left_wrist = skeleton.get_joint('left_wrist')
-        right_shoulder = skeleton.get_joint('right_shoulder')
-        right_wrist = skeleton.get_joint('right_wrist')
+        """
+        计算上肢长（肩峰→中指尖，取左右平均）
 
-        left_len = calculate_distance(left_shoulder, left_wrist) if left_shoulder and left_wrist else 0.0
-        right_len = calculate_distance(right_shoulder, right_wrist) if right_shoulder and right_wrist else 0.0
+        上肢长 = 上臂 + 前臂 + 手长
+        """
+        left_shoulder = skeleton.get_joint('left_shoulder')
+        left_elbow = skeleton.get_joint('left_elbow')
+        left_wrist = skeleton.get_joint('left_wrist')
+        left_index = skeleton.get_joint('left_index')
+        right_shoulder = skeleton.get_joint('right_shoulder')
+        right_elbow = skeleton.get_joint('right_elbow')
+        right_wrist = skeleton.get_joint('right_wrist')
+        right_index = skeleton.get_joint('right_index')
+
+        def _calc_limb(shoulder, elbow, wrist, index):
+            if not shoulder or not elbow or not wrist:
+                return 0.0
+            length = calculate_distance(shoulder, elbow)
+            length += calculate_distance(elbow, wrist)
+            # 加上手长
+            if index:
+                length += calculate_distance(wrist, index)
+            else:
+                # 估算手长 ≈ 前臂长 × 0.45
+                forearm = calculate_distance(elbow, wrist)
+                length += forearm * 0.45
+            return length
+
+        left_len = _calc_limb(left_shoulder, left_elbow, left_wrist, left_index)
+        right_len = _calc_limb(right_shoulder, right_elbow, right_wrist, right_index)
 
         if left_len > 0 and right_len > 0:
             return (left_len + right_len) / 2
@@ -252,7 +381,7 @@ class LinearMeasurements:
         if left_len > 0 or right_len > 0:
             return left_len or right_len
 
-        # 备用：从小腿长估算足长（人体比例：足长 ≈ 小腿长 × 0.55）
+        # 备用：从小腿长估算足长（人体比例：足长 ≈ 小腿长 × 0.625）
         left_knee = skeleton.get_joint('left_knee')
         right_knee = skeleton.get_joint('right_knee')
         left_calf = calculate_distance(left_knee, left_ankle) if left_knee and left_ankle else 0.0
@@ -262,7 +391,7 @@ class LinearMeasurements:
             calf = (left_calf + right_calf) / 2
         elif left_calf > 0 or right_calf > 0:
             calf = left_calf or right_calf
-        return calf * 0.55 if calf > 0 else 0.0
+        return calf * 0.625 if calf > 0 else 0.0
     
     @staticmethod
     def calculate_bike_fitting_bones(skeleton: Skeleton3D) -> Dict[str, float]:

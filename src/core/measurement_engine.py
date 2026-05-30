@@ -304,15 +304,45 @@ class MeasurementEngine:
         # 计算骨骼长度
         bones = LinearMeasurements.calculate_bike_fitting_bones(skeleton_3d)
         height_m = LinearMeasurements.calculate_height(skeleton_3d)
-        shoulder_width_m = LinearMeasurements.calculate_shoulder_width(skeleton_3d)
-        arm_span_m = LinearMeasurements.calculate_arm_span(skeleton_3d)
-        leg_length_m = LinearMeasurements.calculate_leg_length(skeleton_3d)
-        sitting_height_m = LinearMeasurements.calculate_sitting_height(skeleton_3d)
-        pelvic_width_m = LinearMeasurements.calculate_pelvic_width(skeleton_3d)
-        upper_limb_m = LinearMeasurements.calculate_upper_limb_length(skeleton_3d)
-        lower_limb_m = LinearMeasurements.calculate_lower_limb_length(skeleton_3d)
-        trunk_m = LinearMeasurements.calculate_trunk_length(skeleton_3d)
-        foot_length_m = LinearMeasurements.calculate_foot_length(skeleton_3d)
+
+        # 使用身高校准其他测量值（按相关性设置不同容忍度）
+        ratios = LinearMeasurements.BODY_RATIOS
+        shoulder_width_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_shoulder_width(skeleton_3d),
+            ratios['shoulder_width'], height_m, tolerance=0.20
+        )
+        arm_span_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_arm_span(skeleton_3d),
+            ratios['arm_span'], height_m, tolerance=0.08
+        )
+        leg_length_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_leg_length(skeleton_3d),
+            ratios['lower_limb'], height_m, tolerance=0.12
+        )
+        sitting_height_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_sitting_height(skeleton_3d),
+            ratios['sitting_height'], height_m, tolerance=0.10
+        )
+        pelvic_width_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_pelvic_width(skeleton_3d),
+            ratios['pelvic_width'], height_m, tolerance=0.20
+        )
+        upper_limb_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_upper_limb_length(skeleton_3d),
+            ratios['upper_limb'], height_m, tolerance=0.10
+        )
+        lower_limb_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_lower_limb_length(skeleton_3d),
+            ratios['lower_limb'], height_m, tolerance=0.12
+        )
+        trunk_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_trunk_length(skeleton_3d),
+            ratios['trunk'], height_m, tolerance=0.15
+        )
+        foot_length_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_foot_length(skeleton_3d),
+            ratios['foot_length'], height_m, tolerance=0.15
+        )
 
         # 手长：从手部关键点计算（手腕→中指MCP），或从臂长估算
         left_hand_length_m = 0.0
@@ -518,12 +548,38 @@ class MeasurementEngine:
         if ls_px and rs_px:
             shoulder_cm = _h_measure_cm(_euclid(ls_px, rs_px))
 
-        # --- 臂展 ---
+        # --- 臂展（双臂展开总长度 = 左上肢 + 肩宽 + 右上肢）---
         arm_span_cm = 0.0
         lw_px = _px(L_WRIST)
         rw_px = _px(R_WRIST)
-        if lw_px and rw_px:
-            arm_span_cm = _h_measure_cm(_euclid(lw_px, rw_px))
+        li_px = _px(L_INDEX)
+        ri_px = _px(R_INDEX)
+        # 计算左上肢长（肩→肘→腕→手指）
+        left_arm_cm = 0.0
+        if ls_px and le_px and lw_px:
+            left_arm_cm = _h_measure_cm(_euclid(ls_px, le_px) + _euclid(le_px, lw_px))
+            if li_px:
+                left_arm_cm += _h_measure_cm(_euclid(lw_px, li_px))
+            else:
+                left_arm_cm += _h_measure_cm(_euclid(le_px, lw_px)) * 0.45
+        # 计算右上肢长
+        right_arm_cm = 0.0
+        if rs_px and re_px and rw_px:
+            right_arm_cm = _h_measure_cm(_euclid(rs_px, re_px) + _euclid(re_px, rw_px))
+            if ri_px:
+                right_arm_cm += _h_measure_cm(_euclid(rw_px, ri_px))
+            else:
+                right_arm_cm += _h_measure_cm(_euclid(re_px, rw_px)) * 0.45
+        # 臂展 = 左上肢 + 肩宽 + 右上肢
+        if left_arm_cm > 0 and right_arm_cm > 0:
+            arm_span_cm = left_arm_cm + shoulder_cm + right_arm_cm
+        elif left_arm_cm > 0:
+            arm_span_cm = left_arm_cm * 2 + shoulder_cm
+        elif right_arm_cm > 0:
+            arm_span_cm = right_arm_cm * 2 + shoulder_cm
+        elif lw_px and rw_px:
+            # 回退：手腕间距×1.5
+            arm_span_cm = _h_measure_cm(_euclid(lw_px, rw_px)) * 1.5
 
         # --- 腿长 ---
         leg_cm = 0.0
@@ -542,14 +598,22 @@ class MeasurementEngine:
         if lh_px and rh_px:
             pelvic_cm = _h_measure_cm(_euclid(lh_px, rh_px))
 
-        # --- 上肢长 ---
+        # --- 上肢长（肩峰→指尖 = 上臂 + 前臂 + 手长）---
         upper_limb_cm = 0.0
         le_px = _px(L_ELBOW)
         re_px = _px(R_ELBOW)
         if ls_px and le_px and lw_px:
             upper_limb_cm = _h_measure_cm(_euclid(ls_px, le_px) + _euclid(le_px, lw_px))
+            if li_px:
+                upper_limb_cm += _h_measure_cm(_euclid(lw_px, li_px))
+            else:
+                upper_limb_cm += _h_measure_cm(_euclid(le_px, lw_px)) * 0.45
         elif rs_px and re_px and rw_px:
             upper_limb_cm = _h_measure_cm(_euclid(rs_px, re_px) + _euclid(re_px, rw_px))
+            if ri_px:
+                upper_limb_cm += _h_measure_cm(_euclid(rw_px, ri_px))
+            else:
+                upper_limb_cm += _h_measure_cm(_euclid(re_px, rw_px)) * 0.45
 
         # --- 下肢长 ---
         lower_limb_cm = 0.0
@@ -590,18 +654,47 @@ class MeasurementEngine:
 
         # 应用 linear_scale
         s = self.linear_scale
+
+        # 使用身高校准其他测量值（身高单位是cm，需要转换为m进行校准）
+        height_m = height_cm / 100.0 if height_cm > 0 else 0
+        ratios = LinearMeasurements.BODY_RATIOS
+        logger.info(f"身高校准启用: height_cm={height_cm:.1f}, height_m={height_m:.3f}")
+
+        # 按测量项设置不同容忍度（与身高相关性越高，容忍度越低）
+        tolerances = {
+            'arm_span': 0.08,        # 臂展与身高高度相关，8%
+            'sitting_height': 0.10,  # 坐高与身高相关，10%
+            'upper_limb': 0.10,      # 上肢长，10%
+            'lower_limb': 0.12,      # 下肢长，12%
+            'trunk': 0.15,           # 颈臀长，15%
+            'foot_length': 0.15,     # 足长，15%
+            'shoulder_width': 0.20,  # 肩宽自然变异大，20%
+            'pelvic_width': 0.20,    # 骨盆宽自然变异大，20%
+        }
+
+        def _calibrate(raw_cm: float, ratio_key: str) -> float:
+            """校准测量值（输入输出都是cm）"""
+            if raw_cm <= 0 or height_m <= 0:
+                return raw_cm
+            raw_m = raw_cm / 100.0
+            tol = tolerances.get(ratio_key, 0.15)
+            calibrated_m = LinearMeasurements.calibrate_measurement(
+                raw_m, ratios[ratio_key], height_m, tolerance=tol
+            )
+            return calibrated_m * 100.0
+
         measurements = {
             '身高': round(height_cm * s, 1) if height_cm > 0 else None,
-            '肩宽': round(shoulder_cm * s, 1) if shoulder_cm > 0 else None,
-            '臂展': round(arm_span_cm * s, 1) if arm_span_cm > 0 else None,
-            '腿长': round(leg_cm * s, 1) if leg_cm > 0 else None,
-            '坐高': round(sitting_cm * s, 1) if sitting_cm > 0 else None,
-            '骨盆宽': round(pelvic_cm * s, 1) if pelvic_cm > 0 else None,
-            '上肢长': round(upper_limb_cm * s, 1) if upper_limb_cm > 0 else None,
-            '下肢长': round(lower_limb_cm * s, 1) if lower_limb_cm > 0 else None,
-            '颈臀长': round(trunk_cm * s, 1) if trunk_cm > 0 else None,
+            '肩宽': round(_calibrate(shoulder_cm, 'shoulder_width') * s, 1) if shoulder_cm > 0 else None,
+            '臂展': round(_calibrate(arm_span_cm, 'arm_span') * s, 1) if arm_span_cm > 0 else None,
+            '腿长': round(_calibrate(leg_cm, 'lower_limb') * s, 1) if leg_cm > 0 else None,
+            '坐高': round(_calibrate(sitting_cm, 'sitting_height') * s, 1) if sitting_cm > 0 else None,
+            '骨盆宽': round(_calibrate(pelvic_cm, 'pelvic_width') * s, 1) if pelvic_cm > 0 else None,
+            '上肢长': round(_calibrate(upper_limb_cm, 'upper_limb') * s, 1) if upper_limb_cm > 0 else None,
+            '下肢长': round(_calibrate(lower_limb_cm, 'lower_limb') * s, 1) if lower_limb_cm > 0 else None,
+            '颈臀长': round(_calibrate(trunk_cm, 'trunk') * s, 1) if trunk_cm > 0 else None,
             '手长': round(hand_cm * s, 1) if hand_cm > 0 else None,
-            '足长': round(foot_cm * s, 1) if foot_cm > 0 else None,
+            '足长': round(_calibrate(foot_cm, 'foot_length') * s, 1) if foot_cm > 0 else None,
         }
 
         logger.debug(f"像素比例法: ref_px={ref_px:.1f}, height_px={height_px:.1f}, "
@@ -673,15 +766,45 @@ class MeasurementEngine:
 
         bones = LinearMeasurements.calculate_bike_fitting_bones(skeleton_3d)
         height_m = LinearMeasurements.calculate_height(skeleton_3d)
-        shoulder_width_m = LinearMeasurements.calculate_shoulder_width(skeleton_3d)
-        arm_span_m = LinearMeasurements.calculate_arm_span(skeleton_3d)
-        leg_length_m = LinearMeasurements.calculate_leg_length(skeleton_3d)
-        sitting_height_m = LinearMeasurements.calculate_sitting_height(skeleton_3d)
-        pelvic_width_m = LinearMeasurements.calculate_pelvic_width(skeleton_3d)
-        upper_limb_m = LinearMeasurements.calculate_upper_limb_length(skeleton_3d)
-        lower_limb_m = LinearMeasurements.calculate_lower_limb_length(skeleton_3d)
-        trunk_m = LinearMeasurements.calculate_trunk_length(skeleton_3d)
-        foot_length_m = LinearMeasurements.calculate_foot_length(skeleton_3d)
+
+        # 使用身高校准其他测量值（按相关性设置不同容忍度）
+        ratios = LinearMeasurements.BODY_RATIOS
+        shoulder_width_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_shoulder_width(skeleton_3d),
+            ratios['shoulder_width'], height_m, tolerance=0.20
+        )
+        arm_span_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_arm_span(skeleton_3d),
+            ratios['arm_span'], height_m, tolerance=0.08
+        )
+        leg_length_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_leg_length(skeleton_3d),
+            ratios['lower_limb'], height_m, tolerance=0.12
+        )
+        sitting_height_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_sitting_height(skeleton_3d),
+            ratios['sitting_height'], height_m, tolerance=0.10
+        )
+        pelvic_width_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_pelvic_width(skeleton_3d),
+            ratios['pelvic_width'], height_m, tolerance=0.20
+        )
+        upper_limb_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_upper_limb_length(skeleton_3d),
+            ratios['upper_limb'], height_m, tolerance=0.10
+        )
+        lower_limb_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_lower_limb_length(skeleton_3d),
+            ratios['lower_limb'], height_m, tolerance=0.12
+        )
+        trunk_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_trunk_length(skeleton_3d),
+            ratios['trunk'], height_m, tolerance=0.15
+        )
+        foot_length_m = LinearMeasurements.calibrate_measurement(
+            LinearMeasurements.calculate_foot_length(skeleton_3d),
+            ratios['foot_length'], height_m, tolerance=0.15
+        )
 
         # 手长：从手部关键点计算，或从臂长估算
         left_hand_length_m = 0.0
