@@ -489,7 +489,7 @@ class MeasurementEngine:
 
         ref_px = _y_dist(nose_px, sc_px)
         # 头肩距（鼻→肩中心）≈ 24cm（成人平均值）
-        REF_REAL_CM = 24.0
+        REF_REAL_CM = 22.8  # 头肩距参照值（调低修正身高偏高）
 
         if ref_px < 5:
             return None
