@@ -2044,9 +2044,16 @@
 
                 const headers = ['时间', '身高(cm)', '肩宽(cm)', '臂展(cm)', '腿长(cm)', '坐高(cm)', '骨盆宽(cm)', '上肢长(cm)', '下肢长(cm)', '颈臀长(cm)', '手长(cm)', '足长(cm)'];
                 const rows = data.data.map(s => {
-                    const time = s.timestamp ? s.timestamp.replace('T', ' ').substring(0, 19) : '';
+                    let time = '';
+                    if (s.timestamp) {
+                        const d = new Date(s.timestamp);
+                        if (!isNaN(d.getTime())) {
+                            const pad = n => String(n).padStart(2, '0');
+                            time = `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                        }
+                    }
                     return [
-                        time,
+                        time ? `"${time}"` : '',
                         (s.height || 0).toFixed(1),
                         (s.shoulder || 0).toFixed(1),
                         (s.arm_span || 0).toFixed(1),

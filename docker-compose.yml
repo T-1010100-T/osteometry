@@ -1,0 +1,12 @@
+services:
+  height-measurement:
+    build: .
+    image: ${DOCKER_HUB_USER:-yourusername}/osteometry:latest
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    environment:
+      - TZ=Asia/Shanghai
+    restart: unless-stopped

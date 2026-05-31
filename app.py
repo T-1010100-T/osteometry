@@ -751,19 +751,22 @@ def camera_thread():
     logger.info("Camera thread stopped")
 
 def broadcast_frames():
-    """广播帧到 WebSocket"""
+    """广播帧到 WebSocket（限制到 ~15fps，防止浏览器消息队列堆积卡死）"""
+    target_interval = 1.0 / 15.0  # ~15fps
     while state.is_running:
         try:
-            if not frame_queue.empty():
+            # 丢弃旧帧，只取最新一帧
+            frame = None
+            while not frame_queue.empty():
                 frame = frame_queue.get()
-                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
-                frame_base64 = base64.b64encode(buffer).decode('utf-8')
-                fps_val = getattr(state, '_current_fps', 0)
-                socketio.emit('frame', {'data': frame_base64, 'fps': fps_val})
-            else:
+            if frame is None:
                 time.sleep(0.01)
                 continue
-            time.sleep(0.02)
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            frame_base64 = base64.b64encode(buffer).decode('utf-8')
+            fps_val = getattr(state, '_current_fps', 0)
+            socketio.emit('frame', {'data': frame_base64, 'fps': fps_val})
+            time.sleep(target_interval)
         except Exception as e:
             logger.error(f"Broadcast error: {e}")
             time.sleep(0.1)
@@ -986,7 +989,7 @@ def _do_collect(method='manual'):
             img_path = None
 
         record = MeasurementRecord(
-            time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            time=datetime.now().strftime('%Y/%m/%d %H:%M:%S'),
             height=height,
             shoulder=shoulder_width,
             arm_span=arm_span,
@@ -1363,6 +1366,7 @@ def export_data():
     from io import StringIO
     
     output = StringIO()
+    output.write('\uFEFF')  # BOM for Excel Chinese compatibility
     writer = csv.writer(output)
     writer.writerow(['时间', '身高(cm)', '肩宽(cm)', '臂展(cm)', '腿长(cm)', '坐高(cm)', '置信度(%)'])
     
